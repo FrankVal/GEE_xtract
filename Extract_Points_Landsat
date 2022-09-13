@@ -1,0 +1,404 @@
+// The GEE code prepared for extracting data from Landsat satellites
+
+// The code is organised into three sub-steps: 
+
+// * The first sub-step concerns how retain and pre-process available imageries, hence to avoid 
+//    anomalous pixels, softening uncertainties and retaining high-quality pixels prior spectral metrics calculation.
+
+// * The second sub-step shows how to calculate Spectral Metrics for each available multispectral imagery.
+
+// * The third sub-step demonstrates how to apply spatial and temporal scales when extracting remotely sensed pixels from ground-based data.
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sub-step 1: Create the highest quality Landsat composites.
+
+  // Selecting three Landsat collections, namely Landsat 4, Landsat 5, and Landsat 8, with native spectral bands.
+  var L4 = ee.ImageCollection("LANDSAT/LT04/C02/T1_L2"),
+  L5 = ee.ImageCollection("LANDSAT/LT05/C02/T1_L2"),
+  L8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2"),
+    
+  // Selecting a dataset of example for data extraction, comprising of study area and a spatial point dataframe (entire or subsetted per year)
+  Area = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Study_Area"),
+  pts_all = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_All_2017_2021");
+  // pts1 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2017");
+  // pts2 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2018");
+  // pts3 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2019");
+  // pts4 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2020");
+  // pts5 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2021");
+    
+  //Defining ground data and representative period
+  var points = pts5;//User may repeat this step for other dataframes (pt2, pt3, etc). Alternatively, the user can possibly run the entire dataset (pts_all)
+  var start = "2017-01-01"; //Start of time period //Year/Month/Day/
+  var end = "2017-12-31"; // End of time period
+  
+  // Creating a function to extract the quality assessment (QA) bits.
+  var getQABits = function(image, start, end, newName) {
+  // Computing the bits we need to extract.
+  var pattern = 0;
+  for (var i = start; i <= end; i++) {
+  pattern += Math.pow(2, i);
+  }
+  // Returning a single band image of the extracted QA bits, with a new name.
+  return image.select([0], [newName])
+  .bitwiseAnd(pattern)
+  .rightShift(start);
+  };
+  
+  // Renaming spectral bands and quality bands.
+  var bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5','SR_B7', 'SR_B6', 'pixel_qa'];
+  var band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'T','pixel_qa'];
+  var l8bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'SR_B1','QA_PIXEL'];
+  var l8band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'UB', 'pixel_qa'];
+  
+  // Retaining pixels without clouds.
+  var maskClouds = function(image) {
+  // Identifying the quality band.
+  var QA_Clouds = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var BitClouds = getQABits(QA_Clouds, 3, 3, 'Clouds').expression("b(0) == 0");
+  image = image.addBands(BitClouds);
+  // Excluding pixels with clouds.
+  return image.updateMask(BitClouds.neq(0));
+  };
+  
+  // Retaining pixels without shadows.
+  var maskCloud_shadow = function(image) {
+  // Identifying the quality band.
+  var QA_Cloud_shadow = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var BitCloud_shadow = getQABits(QA_Cloud_shadow, 4, 4, 'Cloud shadows').expression("b(0) == 0");
+  image = image.addBands(BitCloud_shadow);
+  // Excluding pixels with shadows.
+  return image.updateMask(BitCloud_shadow.neq(0));
+  };
+  
+  // Retaining pixels without snow.
+  var maskSnow = function(image) {
+  // Identifying the quality band.
+  var QA_Snow = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var BitSnow = getQABits(QA_Snow, 5, 5, 'Snow').expression("b(0) == 0");
+  image = image.addBands(BitSnow);
+  // Excluding pixels with snow.
+  return image.updateMask(BitSnow.neq(0));
+  };
+  
+  // Retaining pixels without water.
+  var maskWater = function(image) {
+  // Identifying the quality band.
+  var QA_Water = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var BitWater = getQABits(QA_Water, 7, 7, 'Water').expression("b(0) == 0");
+  image = image.addBands(BitWater);
+  // Excluding pixels with water.
+  return image.updateMask(BitWater.neq(0));
+  };
+  
+  // Retaining pixels without high cloud confidence.
+  var maskCloud_conf = function(image) {
+  // Identifying the quality band.
+  var QA_Cloud_conf = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var Bit_Cloud_conf = getQABits(QA_Cloud_conf, 8, 9, 'Cloud Confidence').expression("b(0) > 1");
+  image = image.addBands(Bit_Cloud_conf);
+  // Excluding pixels with high cloud confidence.
+  return image.updateMask(Bit_Cloud_conf.eq(0));
+  };
+  
+  // Retaining pixels without high shadows confidence.
+  var maskShadow_conf = function(image) {
+  // Identifying the quality band.
+  var QA_Shadow_conf = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var Bit_Shadow_conf = getQABits(QA_Shadow_conf, 10, 11, 'Shadow Confidence').expression("b(0) > 1");
+  image = image.addBands(Bit_Shadow_conf);
+  // Excluding pixels with high shadows confidence.
+  return image.updateMask(Bit_Shadow_conf.eq(0));
+  };
+  
+  // Retaining pixels without high shadows confidence.
+  var maskSnow_ice_conf = function(image) {
+  // Identifying the quality band.
+  var QA_Snow_ice_conf = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var Bit_Snow_ice_conf = getQABits(QA_Snow_ice_conf, 12, 13, 'Snow/Ice Confidence').expression("b(0) > 1");
+  image = image.addBands(Bit_Snow_ice_conf);
+  // Excluding pixels with high shadows confidence.
+  return image.updateMask(Bit_Snow_ice_conf.eq(0));
+  };
+  
+  // Retaining pixels without high cirrus confidence.
+  var maskCirrus_conf = function(image) {
+  // Identifying the quality band.
+  var QA_Cirrus_conf = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var Bit_Cirrus_conf = getQABits(QA_Cirrus_conf, 14, 15, 'Cirrus Confidence').expression("b(0) > 1");
+  image = image.addBands(Bit_Cirrus_conf);
+    // Excluding pixels with high cirrus confidence.
+  return image.updateMask(Bit_Cirrus_conf.eq(0));
+  };
+
+  // Creating a fucntion to apply scaling factors to switch from Digital Number (DN) to reflectance data
+  function applyScaleFactors(image) {
+  var opticalBands = image.select(['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2']).multiply(0.0000275).add(-0.2);
+  return image.addBands(opticalBands, null, true);
+  }
+  
+  // Creating a function to harmonise Landsat 8 surface reflectance to other Landsat satellites (4-7), using coefficients from Roy et al. 2016
+  //https://doi.org/10.1016/j.rse.2015.12.024
+  var l8_harmonize = function(l8img){
+  var b = ee.Image(0.0183).add(ee.Image(0.8850).multiply(l8img.select('BLUE'))).int16();
+  var g = ee.Image(0.0123).add(ee.Image(0.9317).multiply(l8img.select('GREEN'))).int16();
+  var r = ee.Image(0.0123).add(ee.Image(0.9372).multiply(l8img.select('RED'))).int16();
+  var nir = ee.Image(0.0448).add(ee.Image(0.8339).multiply(l8img.select('NIR1'))).int16();
+  var swir1 = ee.Image(0.0306).add(ee.Image(0.8639).multiply(l8img.select('SWIR1'))).int16();
+  var swir2 = ee.Image(0.0116).add(ee.Image(0.9165).multiply(l8img.select('SWIR2'))).int16();
+  var out = ee.Image(b.addBands(g).addBands(r).addBands(nir).addBands(swir1).addBands(swir2)
+  .addBands(l8img.select(['UB', 'pixel_qa'])).copyProperties(l8img, l8img.propertyNames())).rename(l8band_names);
+  return out;
+  };
+
+  // Creating a function to mosaic image collection by date
+  function mosaicByDate(imcol){
+  var imlist = imcol.toList(imcol.size());
+  var unique_dates = imlist.map(function(im){
+  return ee.Image(im).date().format("YYYY-MM-dd");
+  }).distinct();
+  var mosaic_imlist = unique_dates.map(function(d){
+  d = ee.Date(d);
+  var im = imcol
+  .filterDate(d, d.advance(1, "day"))
+  .mosaic();
+  return im.set(
+  "system:time_start", d.millis(), 
+  "system:id", d.format("YYYY-MM-dd"));
+  });
+  return ee.ImageCollection(mosaic_imlist);
+  }
+
+  // Definining the period, as well as the area where restrict each remote sensing data collection. 
+  // Getting the multispectral imagery dataset within the selected period for the collections from Landsat 4, 5, 8, while renaming their bands.
+  var l4 = ee.ImageCollection(L4).select(bands, band_names).filterDate(start, end).filterBounds(Area)
+  .map(function(img){return img.clip(Area)});
+  //var l4 = mosaicByDate(l4); //User should use this step only when study period reflect Landsat 4 lifespan
+  var l5 = ee.ImageCollection(L5).select(bands, band_names).filterDate(start, end).filterBounds(Area)
+  .map(function(img){return img.clip(Area)});
+  //var l5 = mosaicByDate(l5); //User should use this step only when study period reflect Landsat 5 lifespan
+  var l8 = ee.ImageCollection(L8).select(l8bands, l8band_names).filterDate(start, end).filterBounds(Area)
+  .map(function(img){return img.clip(Area)});
+  var l8 = mosaicByDate(l8); //User should use this step only when study period reflect Landsat 8 lifespan
+  // Applying harmonisation function
+  var l8h = l8.map(l8_harmonize);
+  // Combining the three Landsat (4, 5, 8) collections
+  var landsat_raw = ee.ImageCollection(l4.merge(l5).merge(l8)).select(['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'pixel_qa']);
+  // Apply scaling factors
+  var landsat_raw = landsat_raw.map(applyScaleFactors);
+  // Masking out areas with low quality pixels
+  var HighQuality_Areas = landsat_raw.map(maskClouds).map(maskCloud_shadow).map(maskSnow).map(maskWater).map(maskCloud_conf)
+                           .map(maskShadow_conf).map(maskSnow_ice_conf).map(maskCirrus_conf);
+                           
+  // First check of image collection.
+  print('First check of image collection:',HighQuality_Areas);
+  
+  // Getting the number of images.
+  var count = HighQuality_Areas.size();
+  
+  print('Count: ', count);
+  
+  // Getting the date range of images in the collection.
+  var range = HighQuality_Areas.reduceColumns(ee.Reducer.minMax(), ["system:time_start"]);
+  
+  print('Date range: ', ee.Date(range.get('min')), ee.Date(range.get('max')));
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sub-step 2: Calculate Spectral Metrics.
+
+  // Defining the formulas.
+  
+  // Creating a function to with all formulas to calculate for Landsat. 
+  var compute_metrics = function(image) {
+  
+  // Defining the NDVI formula.
+  var ndvi = image.normalizedDifference(['NIR1', 'RED']).rename('NDVI');
+  
+  // Defining the EVI2 formula.
+  var evi2 = image.select('NIR1').subtract(image.select('RED')).divide(image.select('NIR1').add(image.select('RED')).add(1)).multiply(2.4).rename('EVI2');
+  
+  // Defining the MSAVI2 formula.
+  var msavi2  = image.select('NIR1').multiply(2).add(1).subtract(image.select('NIR1').
+  multiply(2).add(1).pow(2).subtract(image.select('NIR1').subtract(image.select('RED')).
+  multiply(8)).sqrt()).divide(2).rename('MSAVI2');
+  
+  // Defining the NDWI formula.
+  var ndwi = image.normalizedDifference(['NIR1', 'SWIR1']).rename('NDWI');
+  
+  // Defining the PSRI formula.
+  var psri = image.select('RED').subtract(image.select('GREEN')).divide(image.select('NIR1')).rename('PSRI');
+  
+  // Defining the NBR formula.
+  var nbr = image.normalizedDifference(['NIR1','SWIR2']).rename('NBR');
+
+  // Aggregating the calculated bands.
+  return image.addBands(ndvi).addBands(ndvi).addBands(evi2).addBands(msavi2).addBands(ndwi).addBands(psri).addBands(nbr);
+  };
+
+  // Computing and integrating the metrics within the collection.
+  var Spectral_Metrics = HighQuality_Areas.map(compute_metrics);
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sub-step 3: Apply spatial and temporal scales on calculate metrics for ground-data extraction. 
+
+  // Applying spatial scales
+  // Creating a function to apply (square) Moving Windows to computed metrics, utilising mean as pixel aggregating formula.  // Function to apply Moving Windows to computed metrics, utilising mean and standard deviation
+  var addTexture_3X3_Mean = function(image) {
+  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  // Defining the aggregating formula (i.e, mean)
+  reducer: ee.Reducer.mean().unweighted(),
+  // Defining the shape for Moving Windows (i.e, square or round) and size (e.g., 3)
+  kernel: ee.Kernel.square(3),
+  // Renaming the calculated metrics and returning as bands to the collection
+  }).rename(['RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn']);
+  return image.addBands(texture.add(ee.Image(0.0)));
+  };
+   
+  // Creating a function to apply (square) Moving Windows to computed metrics, utilising standard deviation as pixel aggregating formula.
+  var addTexture_3X3_stdDev = function(image) {
+  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  // Defining the aggregating formula (i.e, standard deviation).
+  reducer: ee.Reducer.stdDev().unweighted(),
+  // Defining the shape for Moving Windows ((e.g., square or round) and size (e.g., 3).
+  kernel: ee.Kernel.square(3),
+  // Renaming the calculated metrics and returning as bands to the collection.
+  }).rename(['RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd']);
+  return image.addBands(texture.add(ee.Image(0.0)));
+  };
+  
+  //Integrating the new calculated metrics within the original collection.
+  var Spectral_Metrics_MnSd = Spectral_Metrics.map(addTexture_3X3_Mean).map(addTexture_3X3_stdDev);
+  
+  // Calculating the gray-level co-occurrence matrix (GLCM), for NDVI.
+  var NDVI_GLCM16bit = Spectral_Metrics_MnSd.select('NDVI')
+  .map (function (image) {
+  var glcm = image.multiply(512).uint8().glcmTexture(3, ee.Kernel.square(3,'pixels', true)).float().divide(512);
+  return image.addBands(glcm);
+  });
+  
+  // Integrating the textural metrics within the original collection.
+  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM16bit.combine(Spectral_Metrics_MnSd));
+  var Spectral_Metrics = Spectral_Metrics.copyProperties(Spectral_Metrics_MnSd, Spectral_Metrics_MnSd.propertyNames());
+  var Spectral_Metrics = ee.ImageCollection(Spectral_Metrics);
+  
+  // Calling the variable names
+  var varbands = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn',
+  'RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd',
+  'NDVI_savg', 'NDVI_svar',
+  'NDVI_idm','NDVI_corr'];
+  
+  // Selecting words to rename up to 10 characters due to column heading limits in the final Spatial Point Data Frame
+  var varband_names = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
+  'NDWI_3M','PSRI_3M','NBR_3M',
+  'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
+  'NDWI_3S','PSRI_3S','NBR_3S',
+  'GLCM_M', 'GLCM_V', 
+  'GLCM_H','GLCM_C'];
+  
+  // Renaming the Spectral Bands, Spectral Metrics, and Texture variables.
+  var Spectral_Metrics = Spectral_Metrics.select(varbands, varband_names);
+  
+  print('Second check of image collection:', Spectral_Metrics);
+
+  // Depicting a variable as an example (e.g., MSAVI2).
+  //var msavi2 = Spectral_Metrics.select('MSAVI2');
+  // Reducing the collection with a median reducer.
+  //var msavi2 = msavi2.reduce(ee.Reducer.median());
+  // Cliggping within the study area
+  //var msavi2_clipped = msavi2.clip(Area);
+  // Selectign a palette.
+  //var palette = ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718',
+  //             '74A901', '66A000', '529400', '3E8601', '207401', '056201',
+  //             '004C00', '023B01', '012E01', '011D01', '011301'];
+               
+  //Map.addLayer(msavi2_clipped, {bands: 'MSAVI2_median', min:0, max:1,palette: palette}, 'MSAVI2');
+  
+  // Applying temporal scales
+  // First is required to filter the image colletion with a ground-base Spatial-Points-Dataframe (or Spatial-Polygons-Dataframe, or Spatial-Lines-Dataframe)
+  // The filtering process rely on the temporal resolution of the time step (or time stamp) within the ground-based dataset.
+  
+  // Creating an object with spatio-temporally extracted information from groun-data
+  var ExtractedPoints = points.map(function(feature){
+  
+  // Identifying the date associated to each ground observation.
+  var date = ee.Number(feature.get('timestamp2'));
+  
+  // Calling the temporal information in a legible format (e.g., YYYY/MM/dd). 
+  // Others legible formats can be found here: https://developers.google.com/earth-engine/apidocs/ee-date-parse
+  date = ee.Date.parse('YYYY/MM/dd', date);
+  
+  // Determining the size of Moving Windows for temporally scaling remotely sensed information from each time of observation.
+  var startTempWind = date.advance(-3,'days');
+  var endTempWind = date.advance(3,'days');
+  
+  // Selecting the aggregating formula (e.g., mean or standard deviation)
+  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).mean();
+  
+  // Extracting the remotely sensed information using the geometry feature                   
+  var data = FiltTempWind.reduceRegion(ee.Reducer.mean(), feature.geometry(), 30);
+
+  return ee.Feature(feature.setMulti(data));
+  });
+  
+  // Merging the extracted information with the original Spatial Dataframe
+  // Calling the original Spatial Dataframe.
+  var OriginalSpatialPointsDataframe = points;
+  
+  // Calling the extracted Spatial Dataframe.
+  var ExtractedSpatialPointsDataframe = ee.FeatureCollection(ExtractedPoints);
+  
+  // Defining the matching field between the two collections.
+  var JoinFilter = ee.Filter.equals({
+  leftField: 'ID',
+  rightField: 'ID'
+  });
+  
+  // Defining the "join" parameter.
+  var ParJoin = ee.Join.inner('primary', 'secondary');
+  
+  // Applying the parameter to concatenate the two collections.
+  var DataframeJoin = ParJoin.apply(OriginalSpatialPointsDataframe, ExtractedSpatialPointsDataframe,  JoinFilter);
+  
+  // Creating a function to collapse the Extracted Spatial Dataframe into the Original Spatial Dataframe.
+  function CollapsJoin(feature){
+  return ee.Feature(feature.get('primary')).copyProperties(feature.get('secondary'));
+  }
+  
+  // Applying the collapse function.
+  var DataframeJoin = DataframeJoin.map(CollapsJoin);
+  print('Check the first row of the SpatialPointsDataframe:', DataframeJoin.first());
+  
+  // Exporting the Spatial Dataframe to a SHP file.
+  Export.table.toDrive({
+  collection: DataframeJoin,
+  description:'Landsat_PA_Multispectral_2017',
+  fileFormat: 'SHP'
+  });
+  
+  //Alternatively, the user can indicate specific metrics to write
+  //Export.table.toDrive({
+  //collection: DataframeJoin,
+  //description:'PA_Multispectral_2017',
+  //fileFormat: 'SHP',
+  //selectors: ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  //'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
+  //'NDWI_3M','PSRI_3M','NBR_3M',
+  //'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
+  //'NDWI_3S','PSRI_3S','NBR_3S',
+  //'GLCM_M', 'GLCM_V', 
+  //'GLCM_H','GLCM_C',
+  //'ID','type','ind_ident','timestamp','timestamp2']
+  //});
