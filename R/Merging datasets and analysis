@@ -1,0 +1,439 @@
+library(sp)
+library(rgeos)
+library(mapview)
+library(raster)
+library(rgdal)
+library(Boruta)
+# Reading the annual data fusion shapefiles as data frames.
+MODIS_PA_GPP_LST_2017<-readOGR(dsn="E:....",layer="MODIS_PA_GPP_LST_2017")
+MODIS_PA_GPP_LST_2017<-as.data.frame(MODIS_PA_GPP_LST_2017)
+Landsat_PA_Multispectral_2018<-readOGR(dsn="E:....",layer="MODIS_PA_GPP_LST_2018")
+Landsat_PA_Multispectral_2018<-as.data.frame(Landsat_PA_Multispectral_2018)
+MODIS_PA_GPP_LST_2019<-readOGR(dsn="E:....",layer="MODIS_PA_GPP_LST_2019")
+MODIS_PA_GPP_LST_2019<-as.data.frame(MODIS_PA_GPP_LST_2019)
+MODIS_PA_GPP_LST_2020<-readOGR(dsn="E:....",layer="MODIS_PA_GPP_LST_2020")
+MODIS_PA_GPP_LST_2020<-as.data.frame(MODIS_PA_GPP_LST_2020)
+MODIS_PA_GPP_LST_2021<-readOGR(dsn="E:....",layer="MODIS_PA_GPP_LST_2021")
+MODIS_PA_GPP_LST_2021<-as.data.frame(MODIS_PA_GPP_LST_2021)
+
+# Merging the dataframes.
+MODIS_PA_GPP_LST<-rbind(MODIS_PA_GPP_LST_2017,Landsat_PA_Multispectral_2018,MODIS_PA_GPP_LST_2019,MODIS_PA_GPP_LST_2020,MODIS_PA_GPP_LST_2021)
+# Checking the number of rows and checking the columns compared to the complete original dataset.
+nrow(MODIS_PA_GPP_LST)
+str(MODIS_PA_GPP_LST)
+
+# Writing the dataframe.
+setwd("E:....")
+write.table(MODIS_PA_GPP_LST, file = "MODIS_PA_GPP_LST.txt",na="",col.names=TRUE, sep=",", row.names = F)
+
+# Reading the annual MODIS shapefiles as data frames.
+MODIS_PA_Multispectral_2017<-readOGR(dsn="E:....",layer="MODIS_PA_Multispectral_2017")
+MODIS_PA_Multispectral_2017<-as.data.frame(MODIS_PA_Multispectral_2017)
+MODIS_PA_Multispectral_2018<-readOGR(dsn="E:....",layer="MODIS_PA_Multispectral_2018")
+MODIS_PA_Multispectral_2018<-as.data.frame(MODIS_PA_Multispectral_2018)
+MODIS_PA_Multispectral_2019<-readOGR(dsn="E:....",layer="MODIS_PA_Multispectral_2019")
+MODIS_PA_Multispectral_2019<-as.data.frame(MODIS_PA_Multispectral_2019)
+MODIS_PA_Multispectral_2020<-readOGR(dsn="E:....",layer="MODIS_PA_Multispectral_2020")
+MODIS_PA_Multispectral_2020<-as.data.frame(MODIS_PA_Multispectral_2020)
+MODIS_PA_Multispectral_2021<-readOGR(dsn="E:....",layer="MODIS_PA_Multispectral_2021")
+MODIS_PA_Multispectral_2021<-as.data.frame(MODIS_PA_Multispectral_2021)
+
+# Merging the dataframes.
+MODIS_PA_Multispectral<-rbind(MODIS_PA_Multispectral_2017,MODIS_PA_Multispectral_2018,MODIS_PA_Multispectral_2019,MODIS_PA_Multispectral_2020,MODIS_PA_Multispectral_2021)
+# Checking the number of rows and checking the columns compared to the complete original dataset.
+nrow(MODIS_PA_Multispectral)
+str(MODIS_PA_Multispectral)
+
+# Writing the dataframe.
+setwd("E:....")
+write.table(MODIS_PA_Multispectral, file = "MODIS_PA_Multispectral.txt",na="",col.names=TRUE, sep=",", row.names = F)
+
+# Reading the annual Landsat shapefiles as data frames.
+Landsat_PA_Multispectral_2017<-readOGR(dsn="....",layer="Landsat_PA_Multispectral_2017")
+Landsat_PA_Multispectral_2017<-as.data.frame(Landsat_PA_Multispectral_2017)
+Landsat_PA_Multispectral_2018<-readOGR(dsn="....",layer="Landsat_PA_Multispectral_2018")
+Landsat_PA_Multispectral_2018<-as.data.frame(Landsat_PA_Multispectral_2018)
+Landsat_PA_Multispectral_2019<-readOGR(dsn="....",layer="Landsat_PA_Multispectral_2019")
+Landsat_PA_Multispectral_2019<-as.data.frame(Landsat_PA_Multispectral_2019)
+Landsat_PA_Multispectral_2020<-readOGR(dsn="....",layer="Landsat_PA_Multispectral_2020")
+Landsat_PA_Multispectral_2020<-as.data.frame(Landsat_PA_Multispectral_2020)
+Landsat_PA_Multispectral_2021<-readOGR(dsn="....",layer="Landsat_PA_Multispectral_2021")
+Landsat_PA_Multispectral_2021<-as.data.frame(Landsat_PA_Multispectral_2021)
+
+# Merging the dataframes.
+Landsat_PA_Multispectral<-rbind(Landsat_PA_Multispectral_2017,Landsat_PA_Multispectral_2018,Landsat_PA_Multispectral_2019,Landsat_PA_Multispectral_2020,Landsat_PA_Multispectral_2021)
+# Checking the number of rows and checking the columns compared to the complete original dataset.
+nrow(Landsat_PA_Multispectral)
+str(Landsat_PA_Multispectral)
+
+# Writing the dataframe.
+setwd("E:....")
+write.table(Landsat_PA_Multispectral, file = "Landsat_PA_Multispectral.txt",na="",col.names=TRUE, sep=",", row.names = F)
+
+# Reading the annual Sentinel shapefiles as data frames.
+Sentinel2_PA_Multispectral_2017<-readOGR(dsn="E:....",layer="Sentinel2_PA_Multispectral_2017")
+Sentinel2_PA_Multispectral_2017<-as.data.frame(Sentinel2_PA_Multispectral_2017)
+Sentinel2_PA_Multispectral_2018<-readOGR(dsn="E:....",layer="Sentinel2_PA_Multispectral_2018")
+Sentinel2_PA_Multispectral_2018<-as.data.frame(Sentinel2_PA_Multispectral_2018)
+Sentinel2_PA_Multispectral_2019<-readOGR(dsn="E:....",layer="Sentinel2_PA_Multispectral_2019")
+Sentinel2_PA_Multispectral_2019<-as.data.frame(Sentinel2_PA_Multispectral_2019)
+Sentinel2_PA_Multispectral_2020<-readOGR(dsn="E:....",layer="Sentinel2_PA_Multispectral_2020")
+Sentinel2_PA_Multispectral_2020<-as.data.frame(Sentinel2_PA_Multispectral_2020)
+Sentinel2_PA_Multispectral_2021<-readOGR(dsn="E:....",layer="Sentinel2_PA_Multispectral_2021")
+Sentinel2_PA_Multispectral_2021<-as.data.frame(Sentinel2_PA_Multispectral_2021)
+
+# Merging the dataframes.
+Sentinel2_PA_Multispectral<-rbind(Sentinel2_PA_Multispectral_2017,Sentinel2_PA_Multispectral_2018,Sentinel2_PA_Multispectral_2019,Sentinel2_PA_Multispectral_2020,Sentinel2_PA_Multispectral_2021)
+# Checking the number of rows and checking the columns compared to the complete original dataset.
+nrow(Sentinel2_PA_Multispectral)
+str(Sentinel2_PA_Multispectral)
+
+# Writing the dataframe.
+setwd("E:....")
+write.table(Sentinel2_PA_Multispectral, file = "Sentinel2_PA_Multispectral.txt",na="",col.names=TRUE, sep=",", row.names = F)
+
+#Reading the MODIS dataframe.
+MODIS_PA_Multispectral <- read.table("E:....MODIS_PA_Multispectral.txt",fill = TRUE, header=TRUE, sep=',',check.names = FALSE)
+nrow(MODIS_PA_Multispectral)
+
+# Removing rows with NA.
+MODIS_PA_Multispectral <- na_kalman(MODIS_PA_Multispectral)
+nrow(MODIS_PA_Multispectral)
+MODIS_PA_Multispectral <- na.omit(MODIS_PA_Multispectral)                           
+nrow(MODIS_PA_Multispectral)
+
+# Converting the column pa into factors.
+MODIS_PA_Multispectral[, 'pa'] <- as.factor(MODIS_PA_Multispectral[, 'pa'])
+
+#Excluding variables that are inappropriate or designed for other domains in ecological research.
+MODIS_PA_Multispectral$ind_ident<- NULL
+MODIS_PA_Multispectral$timestamp2<- NULL
+MODIS_PA_Multispectral$ID<- NULL
+MODIS_PA_Multispectral$timestamp<- NULL
+MODIS_PA_Multispectral$coords.x1<- NULL
+MODIS_PA_Multispectral$coords.x2<- NULL
+MODIS_PA_Multispectral$NDWI_3S<- NULL
+MODIS_PA_Multispectral$NDWI_3M<- NULL
+MODIS_PA_Multispectral$NDWI<- NULL
+MODIS_PA_Multispectral$PSRI_3S<- NULL
+MODIS_PA_Multispectral$PSRI_3M<- NULL
+MODIS_PA_Multispectral$PSRI<- NULL
+MODIS_PA_Multispectral$NBR_3S<- NULL
+MODIS_PA_Multispectral$NBR_3M<- NULL
+MODIS_PA_Multispectral$NBR<- NULL
+MODIS_PA_Multispectral$NIR2_3S<- NULL
+MODIS_PA_Multispectral$NIR2_3M<- NULL
+MODIS_PA_Multispectral$NIR2<- NULL
+MODIS_PA_Multispectral$OBJECTID<- NULL
+MODIS_PA_Multispectral$lat<- NULL
+MODIS_PA_Multispectral$long<- NULL
+str(MODIS_PA_Multispectral)
+
+set.seed(12)
+ncol(MODIS_PA_Multispectral)
+x <- ncol(MODIS_PA_Multispectral)-1 #excluding the response variable.
+mtry <- sqrt(x) #Square root of the number of explanatory variables.
+# Running the Random Forests variant,i.e. Boruta.
+BorutaMODIS <- Boruta(pa ~ ., data = MODIS_PA_Multispectral, maxRuns = 2000,  doTrace = 2,  ntree = 2000, mtry=mtry)
+boruta_Out_Tetrax.Fix_MODIS <- TentativeRoughFix(BorutaMODIS)
+MODIS_Importance<-plot(boruta_Out_Tetrax.Fix_MODIS, cex.axis=.7, las=2,boxwex = 0.9, horizontal=T,xlab="Importance",ylab = NULL,main="MODIS",whichShadow = c(FALSE, FALSE, FALSE))
+MODIS_Importance
+
+#Converting importance scores into percentage and order variables.
+MODISimps <- attStats(MODIS_Importance)
+MODISimps2 <-  MODISimps[MODISimps$decision != 'Rejected', c('meanImp', 'decision')]
+MODISimps2 <-  MODISimps2[!row.names(MODISimps2) %in% 'group', ]
+MODISimps2$meanImp  <-(MODISimps2$meanImp/sum(MODISimps2$meanImp))*100
+head(MODISimps2[order(-MODISimps2$meanImp), ], 100)  # descending sort
+mean<-mean(MODISimps2$meanImp)
+
+# Plotting importance scores.
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(tibble)
+library(hrbrthemes)
+MODISPlot<-MODISimps2 %>% rownames_to_column() %>% 
+  arrange(meanImp) %>% 
+  mutate(name= factor(rowname, levels= rowname)) %>%
+  ggplot(aes(y=meanImp, x= name)) +
+  geom_segment(aes(y = 0, x = name, yend = meanImp, xend = name),size=0.3,col = "darkgrey",linetype = "longdash") + 
+  geom_point(stat='identity', color="darkgreen", alpha = 0.6, position = position_jitter(width=-0.01),size=1) +
+  geom_smooth(span = 0.20,color="#addd8e", size=0.3)+
+  labs(x = '', y = 'Importance (%)')  +
+  theme_ipsum(axis_title_size = 6)  +   theme(axis.text.x=element_text(size=rel(0.7), angle=45)) +   theme(axis.text.y=element_text(size=rel(0.7), angle=0)) + coord_flip()
+
+#Writing the plot
+setwd("E:....")
+ggsave(file="1MODIS.tiff", MODISPlot,width = 9.5, height = 10,units="cm",dpi=600)
+dev.off()
+
+#Reading the Landsat dataframe.
+Landsat_PA_Multispectral <- read.table("....Landsat_PA_Multispectral.txt",fill = TRUE, header=TRUE, sep=',',check.names = FALSE)
+nrow(Landsat_PA_Multispectral)
+
+# Removing rows with NA.
+Landsat_PA_Multispectral <- na_kalman(Landsat_PA_Multispectral)
+nrow(Landsat_PA_Multispectral)
+Landsat_PA_Multispectral <- na.omit(Landsat_PA_Multispectral)                           
+nrow(Landsat_PA_Multispectral)
+
+# Converting the column pa into factors.
+Landsat_PA_Multispectral[, 'pa'] <- as.factor(Landsat_PA_Multispectral[, 'pa'])
+
+#Excluding variables that are inappropriate or designed for other domains in ecological research.
+Landsat_PA_Multispectral$ind_ident<- NULL
+Landsat_PA_Multispectral$timestamp2<- NULL
+Landsat_PA_Multispectral$ID<- NULL
+Landsat_PA_Multispectral$timestamp<- NULL
+Landsat_PA_Multispectral$coords.x1<- NULL
+Landsat_PA_Multispectral$coords.x2<- NULL
+Landsat_PA_Multispectral$NDWI_3S<- NULL
+Landsat_PA_Multispectral$NDWI_3M<- NULL
+Landsat_PA_Multispectral$NDWI<- NULL
+Landsat_PA_Multispectral$PSRI_3S<- NULL
+Landsat_PA_Multispectral$PSRI_3M<- NULL
+Landsat_PA_Multispectral$PSRI<- NULL
+Landsat_PA_Multispectral$NBR_3S<- NULL
+Landsat_PA_Multispectral$NBR_3M<- NULL
+Landsat_PA_Multispectral$NBR<- NULL
+Landsat_PA_Multispectral$NIR2_3S<- NULL
+Landsat_PA_Multispectral$NIR2_3M<- NULL
+Landsat_PA_Multispectral$NIR2<- NULL
+Landsat_PA_Multispectral$OBJECTID<- NULL
+Landsat_PA_Multispectral$lat<- NULL
+Landsat_PA_Multispectral$long<- NULL
+str(Landsat_PA_Multispectral)
+
+set.seed(123)
+ncol(Landsat_PA_Multispectral)
+x <- ncol(Landsat_PA_Multispectral)-1 #excluding the response variable.
+mtry <- sqrt(x) #Square root of the number of explanatory variables.
+# Running the Random Forests variant,i.e. Boruta.
+BorutaLandsat <- Boruta(pa ~ ., data = Landsat_PA_Multispectral, maxRuns = 2000,  doTrace = 2,  ntree = 2000, mtry=mtry)
+boruta_Out_Tetrax.Fix_Landsat <- TentativeRoughFix(BorutaLandsat)
+Landsat_Importance<-plot(boruta_Out_Tetrax.Fix_Landsat, cex.axis=.7, las=2,boxwex = 0.9, horizontal=T,xlab="Importance",ylab = NULL,main="Landsat",whichShadow = c(FALSE, FALSE, FALSE))
+Landsat_Importance
+
+#Converting importance scores into percentage and order variables.
+Landsatimps <- attStats(Landsat_Importance)
+Landsatimps2 <-  Landsatimps[Landsatimps$decision != 'Rejected', c('meanImp', 'decision')]
+Landsatimps2 <-  Landsatimps2[!row.names(Landsatimps2) %in% 'group', ]
+Landsatimps2$meanImp  <-(Landsatimps2$meanImp/sum(Landsatimps2$meanImp))*100
+head(Landsatimps2[order(-Landsatimps2$meanImp), ], 100)  # descending sort
+mean<-mean(Landsatimps2$meanImp)
+
+# Plotting importance scores.
+LandsatPlot<-Landsatimps2 %>% rownames_to_column() %>% 
+  arrange(meanImp) %>% 
+  mutate(name= factor(rowname, levels= rowname)) %>%
+  ggplot(aes(y=meanImp, x= name)) +
+  geom_segment(aes(y = 0, x = name, yend = meanImp, xend = name),size=0.3,col = "darkgrey",linetype = "longdash") + 
+  geom_point(stat='identity', color="darkgreen", alpha = 0.6, position = position_jitter(width=-0.01),size=1) +
+  geom_smooth(span = 0.20,color="#addd8e", size=0.3)+
+  labs(x = '', y = 'Importance (%)')  +
+  theme_ipsum(axis_title_size = 6)  +   theme(axis.text.x=element_text(size=rel(0.7), angle=45)) +   theme(axis.text.y=element_text(size=rel(0.7), angle=0)) + coord_flip()
+
+#Writing the plot
+setwd("E:....")
+ggsave(file="2Landsat.tiff", LandsatPlot,width = 9.5, height = 10,units="cm",dpi=600)
+dev.off()
+
+#Reading the Sentinel dataframe.
+Sentinel2_PA_Multispectral <- read.table("E:....Sentinel2_PA_Multispectral.txt",fill = TRUE, header=TRUE, sep=',',check.names = FALSE)
+nrow(Sentinel2_PA_Multispectral)
+
+# Removing rows with NA.
+Sentinel2_PA_Multispectral <- na_kalman(Sentinel2_PA_Multispectral)
+nrow(Sentinel2_PA_Multispectral)
+Sentinel2_PA_Multispectral <- na.omit(Sentinel2_PA_Multispectral)                           
+nrow(Sentinel2_PA_Multispectral)
+
+# Converting the column pa into factors.
+Sentinel2_PA_Multispectral[, 'pa'] <- as.factor(Sentinel2_PA_Multispectral[, 'pa'])
+
+#Excluding variables that are inappropriate or designed for other domains in ecological research.
+Sentinel2_PA_Multispectral$ind_ident<- NULL
+Sentinel2_PA_Multispectral$timestamp2<- NULL
+Sentinel2_PA_Multispectral$ID<- NULL
+Sentinel2_PA_Multispectral$timestamp<- NULL
+Sentinel2_PA_Multispectral$coords.x1<- NULL
+Sentinel2_PA_Multispectral$coords.x2<- NULL
+Sentinel2_PA_Multispectral$NDWI_3S<- NULL
+Sentinel2_PA_Multispectral$NDWI_3M<- NULL
+Sentinel2_PA_Multispectral$NDWI<- NULL
+Sentinel2_PA_Multispectral$PSRI_3S<- NULL
+Sentinel2_PA_Multispectral$PSRI_3M<- NULL
+Sentinel2_PA_Multispectral$PSRI<- NULL
+Sentinel2_PA_Multispectral$NBR_3S<- NULL
+Sentinel2_PA_Multispectral$NBR_3M<- NULL
+Sentinel2_PA_Multispectral$NBR<- NULL
+Sentinel2_PA_Multispectral$NIR2_3S<- NULL
+Sentinel2_PA_Multispectral$NIR2_3M<- NULL
+Sentinel2_PA_Multispectral$NIR2<- NULL
+Sentinel2_PA_Multispectral$OBJECTID<- NULL
+Sentinel2_PA_Multispectral$lat<- NULL
+Sentinel2_PA_Multispectral$long<- NULL
+str(Sentinel2_PA_Multispectral)
+
+set.seed(123)
+ncol(Sentinel2_PA_Multispectral)
+x <- ncol(Sentinel2_PA_Multispectral)-1 #excluding Response Variables.
+mtry <- sqrt(x) #Square root of the number of explanatory variables.
+# Running the Random Forests variant,i.e. Boruta.
+BorutaSentinel2 <- Boruta(pa ~ ., data = Sentinel2_PA_Multispectral, maxRuns = 2000,  doTrace = 2,  ntree = 2000, mtry=mtry)
+boruta_Out_Tetrax.Fix_Sentinel2 <- TentativeRoughFix(BorutaSentinel2)
+Sentinel2_Importance<-plot(boruta_Out_Tetrax.Fix_Sentinel2, cex.axis=.7, las=2,boxwex = 0.9, horizontal=T,xlab="Importance",ylab = NULL,main="Sentinel-2",whichShadow = c(FALSE, FALSE, FALSE))
+Sentinel2_Importance
+
+#Converting importance scores into percentage and order variables.
+Sentinel2imps <- attStats(Sentinel2_Importance)
+Sentinel2imps2 <-  Sentinel2imps[Sentinel2imps$decision != 'Rejected', c('meanImp', 'decision')]
+Sentinel2imps2 <-  Sentinel2imps2[!row.names(Sentinel2imps2) %in% 'group', ]
+Sentinel2imps2$meanImp  <-(Sentinel2imps2$meanImp/sum(Sentinel2imps2$meanImp))*100
+head(Sentinel2imps2[order(-Sentinel2imps2$meanImp), ], 100)  # descending sort
+mean<-mean(Sentinel2imps2$meanImp)
+
+# Plotting importance scores.
+Sentinel2Plot<-Sentinel2imps2 %>% rownames_to_column() %>% 
+  arrange(meanImp) %>% 
+  mutate(name= factor(rowname, levels= rowname)) %>%
+  ggplot(aes(y=meanImp, x= name)) +
+  geom_segment(aes(y = 0, x = name, yend = meanImp, xend = name),size=0.3,col = "darkgrey",linetype = "longdash") + 
+  geom_point(stat='identity', color="darkgreen", alpha = 0.6, position = position_jitter(width=-0.01),size=1) +
+  geom_smooth(span = 0.20,color="#addd8e", size=0.3)+
+  labs(x = '', y = 'Importance (%)')  +
+  theme_ipsum(axis_title_size = 6)  +   theme(axis.text.x=element_text(size=rel(0.7), angle=45)) +   theme(axis.text.y=element_text(size=rel(0.7), angle=0)) + coord_flip()
+
+#Writing the plot
+setwd("E:....")
+ggsave(file="3Sentinel2.tiff", Sentinel2Plot,width = 9.5, height = 10,units="cm",dpi=600)
+dev.off()
+
+#Data fusion approach
+# Reading the MODIS data-fusion data frame.
+MODIS_PA_GPP_LST <- read.table("E:....MODIS_PA_GPP_LST.txt",fill = TRUE, header=TRUE, sep=',',check.names = FALSE)
+nrow(MODIS_PA_GPP_LST)
+
+# Removing rows with NA.
+MODIS_PA_GPP_LST <- na_kalman(MODIS_PA_GPP_LST)
+nrow(MODIS_PA_GPP_LST)
+MODIS_PA_GPP_LST <- na.omit(MODIS_PA_GPP_LST)                           
+nrow(MODIS_PA_GPP_LST)
+
+# Converting the column pa into factors.
+MODIS_PA_GPP_LST[, 'pa'] <- as.factor(MODIS_PA_GPP_LST[, 'pa'])
+
+#Excluding variables that are inappropriate or designed for other domains in ecological research.
+MODIS_PA_GPP_LST$ind_ident<- NULL
+MODIS_PA_GPP_LST$timestamp2<- NULL
+#MODIS_PA_GPP_LST$ID<- NULL
+MODIS_PA_GPP_LST$timestamp<- NULL
+MODIS_PA_GPP_LST$coords.x1<- NULL
+MODIS_PA_GPP_LST$coords.x2<- NULL
+MODIS_PA_GPP_LST$NDWI_3S<- NULL
+MODIS_PA_GPP_LST$NDWI_3M<- NULL
+MODIS_PA_GPP_LST$NDWI<- NULL
+MODIS_PA_GPP_LST$PSRI_3S<- NULL
+MODIS_PA_GPP_LST$PSRI_3M<- NULL
+MODIS_PA_GPP_LST$PSRI<- NULL
+MODIS_PA_GPP_LST$NBR_3S<- NULL
+MODIS_PA_GPP_LST$NBR_3M<- NULL
+MODIS_PA_GPP_LST$NBR<- NULL
+MODIS_PA_GPP_LST$NIR2_3S<- NULL
+MODIS_PA_GPP_LST$NIR2_3M<- NULL
+MODIS_PA_GPP_LST$NIR2<- NULL
+MODIS_PA_GPP_LST$OBJECTID<- NULL
+MODIS_PA_GPP_LST$lat<- NULL
+MODIS_PA_GPP_LST$long<- NULL
+str(MODIS_PA_GPP_LST)
+MODIS_PA_Multispectral$pa<- NULL
+Landsat_PA_Multispectral$pa<- NULL
+Sentinel2_PA_Multispectral$pa<- NULL
+
+#Renaming Variables names of MODIS with the abbreviation of "MOD".
+colnames(MODIS_PA_GPP_LST) <- paste("MOD", colnames(MODIS_PA_GPP_LST), sep = "_")
+library(data.table)
+setnames(MODIS_PA_GPP_LST, "MOD_ID", "ID")
+setnames(MODIS_PA_GPP_LST, "MOD_pa", "pa")
+str(MODIS_PA_GPP_LST)
+colnames(MODIS_PA_Multispectral) <- paste("MOD", colnames(MODIS_PA_Multispectral), sep = "_")
+library(data.table)
+setnames(MODIS_PA_Multispectral, "MOD_ID", "ID")
+str(MODIS_PA_Multispectral)
+
+#Renaming Variables names of Landsat with the abbreviation of "Lan".
+colnames(Landsat_PA_Multispectral) <- paste("Lan", colnames(Landsat_PA_Multispectral), sep = "_")
+library(data.table)
+setnames(Landsat_PA_Multispectral, "Lan_ID", "ID")
+str(Landsat_PA_Multispectral)
+
+#Renaming Variables names of Sentinel 2 with the abbreviation of "S2".
+colnames(Sentinel2_PA_Multispectral) <- paste("S2", colnames(Sentinel2_PA_Multispectral), sep = "_")
+library(data.table)
+setnames(Sentinel2_PA_Multispectral, "S2_ID", "ID")
+str(Sentinel2_PA_Multispectral)
+
+#Merging the dataframes by ID
+MODIS_PA_GPP_LST_MUltispectral <- merge(MODIS_PA_GPP_LST, MODIS_PA_Multispectral, by = "ID", all = TRUE)
+Landsat_MODIS_PA_GPP_LST_MUltispectral <- merge(MODIS_PA_GPP_LST_MUltispectral, Landsat_PA_Multispectral, by = "ID", all = TRUE)
+All_Sensors <- merge(Landsat_MODIS_PA_GPP_LST_MUltispectral, Sentinel2_PA_Multispectral, by = "ID", all = TRUE)
+
+#Now remove the ID
+All_Sensors$ID<- NULL
+str(All_Sensors)
+
+#Writing the data-fusion dataframe.
+setwd("E:....")
+write.table(All_Sensors, file = "All_Sensors.txt",na="",col.names=TRUE, sep=",", row.names = F)
+
+#Reading the data-fusion data frame.
+All_Sensors <- read.table("E:..../All_Sensors.txt",fill = TRUE, header=TRUE, sep=',',check.names = FALSE)
+
+# Removing rows with NA.
+All_Sensors <- na_kalman(All_Sensors)
+nrow(All_Sensors)
+All_Sensors <- na.omit(All_Sensors)                          
+nrow(All_Sensors)
+
+# Converting the column pa into factors.
+All_Sensors[, 'pa'] <- as.factor(All_Sensors[, 'pa'])
+
+set.seed(12)
+ncol(All_Sensors)
+x <- ncol(All_Sensors)-1 #excluding Response Variables.
+mtry <- sqrt(x) #Square root of the number of explanatory variables.
+BorutaAll_sensors <- Boruta(pa ~ ., data = All_Sensors, maxRuns = 2000,  doTrace = 2,  ntree = 2000, mtry=mtry)
+boruta_Out_Tetrax.Fix_All_sensors <- TentativeRoughFix(BorutaAll_sensors)
+All_Sensors_Importance<-plot(boruta_Out_Tetrax.Fix_All_sensors, cex.axis=.45, las=1.5,boxwex = 0.9, horizontal=T,xlab="Importance",ylab = NULL,main="All sensors",whichShadow = c(FALSE, FALSE, FALSE))
+All_Sensors_Importance
+
+#Converting importance scores into percentage and order variables.
+All_Sensorsimps <- attStats(All_Sensors_Importance)
+All_Sensorsimps2 <-  All_Sensorsimps[All_Sensorsimps$decision != 'Rejected', c('meanImp', 'decision')]
+All_Sensorsimps2 <-  All_Sensorsimps2[!row.names(All_Sensorsimps2) %in% 'group', ]
+All_Sensorsimps2$meanImp  <-(All_Sensorsimps2$meanImp/sum(All_Sensorsimps2$meanImp))*100
+head(All_Sensorsimps2[order(-All_Sensorsimps2$meanImp), ], 100)  # descending sort
+mean<-mean(All_Sensorsimps2$meanImp)
+
+# Plotting importance scores.
+library(ggplot2)
+library(dplyr)
+library(magrittr)
+library(tibble)
+library(hrbrthemes)
+All_SensorsPlot<-All_Sensorsimps2 %>% rownames_to_column() %>% 
+  arrange(meanImp) %>% 
+  mutate(name= factor(rowname, levels= rowname)) %>%
+  ggplot(aes(y=meanImp, x= name)) +
+  geom_segment(aes(y = 0, x = name, yend = meanImp, xend = name),size=0.3,col = "darkgrey",linetype = "longdash") + 
+  geom_point(stat='identity', color="darkgreen", alpha = 0.6, position = position_jitter(width=-0.01),size=1) +
+  geom_smooth(span = 0.20,color="#addd8e", size=0.3)+
+  labs(x = '', y = 'Importance (%)')  +
+  theme_ipsum(axis_title_size = 6)  +   theme(axis.text.x=element_text(size=rel(0.7), angle=45)) +   theme(axis.text.y=element_text(size=rel(0.7), angle=0)) + coord_flip()
+
+# Writing the plot
+setwd("E:....")
+ggsave(file="4All_Sensors.tiff", All_SensorsPlot,width = 9.5, height = 24,units="cm",dpi=600)
+dev.off()
+
