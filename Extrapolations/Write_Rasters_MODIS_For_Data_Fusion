@@ -3,7 +3,7 @@
   LST = ee.ImageCollection("MODIS/006/MYD11A2"),
   
   // Selecting a dataset of example for data extraction, comprising of study area and a spatial point dataframe (entire or subsetted per year)
-  Area = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Study_Area");
+  Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area");
 
   //Defining ground data and representative period
   var start = "2017-01-01"; //Start of time period //Year/Month/Day/
