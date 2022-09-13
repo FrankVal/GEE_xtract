@@ -16,13 +16,13 @@
   var S2 = ee.ImageCollection("COPERNICUS/S2_SR"),
  
   // Selecting a dataset of example for data extraction, comprising of study area and a spatial point dataframe (entire or subsetted per year)
-  Area = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Study_Area"),
-  // pts_all = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_All_2017_2021"),
-  pts1 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2017");
-  // pts2 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2018");
-  // pts3 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2019");
-  // pts4 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2020");
-  // pts5 = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Ground_Observations_2021");
+  Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area"),
+  // pts_all = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_All_2017_2021"),
+  pts1 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2017");
+  // pts2 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2018");
+  // pts3 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2019");
+  // pts4 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2020");
+  // pts5 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2021");
   
   //Defining ground data and representative period
   var points = pts1;//User may repeat this step for other dataframes (pt2, pt3, etc). Alternatively, the user can possibly run the entire dataset (pts_all)
