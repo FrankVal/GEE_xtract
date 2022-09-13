@@ -1,7 +1,7 @@
   // Selecting Sentinel 2 collection with native spectral bands.
   var S2 = ee.ImageCollection("COPERNICUS/S2_SR"),
  
-  Area = ee.FeatureCollection("users/valeriofrank/Methods_Ecol_Evol/Study_Area");
+  Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area");
   
   //Defining ground data and representative period
   var start = "2017-01-01"; //Start of time period //Year/Month/Day/
