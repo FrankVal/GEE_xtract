@@ -1,4 +1,4 @@
-// The GEE code prepared for extracting data from MODIS satellites
+// The GEE code prepared for extracting data from Sentinel 2 satellite.
 
 // The code is organised into three sub-steps: 
 
@@ -10,7 +10,7 @@
 // * The third sub-step demonstrates how to apply spatial and temporal scales when extracting remotely sensed pixels from ground-based data.
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Sub-step 1: Create the highest quality MODIS composites.
+// Sub-step 1: Create the highest quality Sentinel 2 composites.
 
   // Selecting Sentinel 2 collection with native spectral bands.
   var S2 = ee.ImageCollection("COPERNICUS/S2_SR"),
