@@ -12,4 +12,6 @@ Moreover, besides the GEE extraction codes, two secundary directories are availa
 
 1. One directory represent how to produce variable for extrapolation analysis, hence to write significant habitat metrics, which can be parametrised by the user.
 
-2. Another directory is a working example on how combine different extrapolated dataset in R, and how identify significant habitat metrics. The example refers to the ecological case of study present in the manuscript.
+2. Another directory is a working example on how combine different extrapolated dataset in R, and how identify significant habitat metrics. 
+
+3. The sample data refers to telemetry observation, which is the ecological case of study present in the manuscript.
