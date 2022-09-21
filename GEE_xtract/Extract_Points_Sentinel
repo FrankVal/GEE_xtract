@@ -1,0 +1,342 @@
+// The GEE code prepared for extracting data from Sentinel 2 satellite.
+
+// The code is organised into three sub-steps: 
+
+// * The first sub-step concerns how retain and pre-process available imageries, hence to avoid 
+//    anomalous pixels, softening uncertainties and retaining high-quality pixels prior spectral metrics calculation.
+
+// * The second sub-step shows how to calculate Spectral Metrics for each available multispectral imagery.
+
+// * The third sub-step demonstrates how to apply spatial and temporal scales when extracting remotely sensed pixels from ground-based data.
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sub-step 1: Create the highest quality Sentinel 2 composites.
+
+  // Selecting Sentinel 2 collection with native spectral bands.
+  var S2 = ee.ImageCollection("COPERNICUS/S2_SR"),
+ 
+  // Selecting a dataset of example for data extraction, comprising of study area and a spatial point dataframe (entire or subsetted per year)
+  Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area"),
+  // pts_all = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_All_2017_2021"),
+  pts1 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2017");
+  // pts2 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2018");
+  // pts3 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2019");
+  // pts4 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2020");
+  // pts5 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2021");
+  
+  //Defining ground data and representative period
+  var points = pts1;//User may repeat this step for other dataframes (pt2, pt3, etc). Alternatively, the user can possibly run the entire dataset (pts_all)
+  var start = "2017-01-01"; //Start of time period //Year/Month/Day/
+  var end = "2017-12-31"; // End of time period
+  
+  // Creating a function to extract the quality assessment (QA) bits.
+  var getQABits = function(image, start, end, newName) {
+  // Computing the bits we need to extract.
+  var pattern = 0;
+  for (var i = start; i <= end; i++) {
+  pattern += Math.pow(2, i);
+  }
+  // Returning a single band image of the extracted QA bits, with a new name.
+  return image.select([0], [newName])
+  .bitwiseAnd(pattern)
+  .rightShift(start);
+  };
+  
+  // Renaming spectral bands and quality bands.
+  var bands = ['B2','B3','B4','B8','B11','B12','QA60','SCL'];
+  var band_names = ['BLUE','GREEN','RED','NIR1','SWIR1','SWIR2','pixel_qa','pixel_flag'];
+  
+  // Retaining pixels without opaque clouds.
+  var maskClouds = function(image) {
+  // Identifying the quality band.
+  var QA_Clouds = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var BitClouds = getQABits(QA_Clouds, 10, 10, 'Opaque clouds').expression("b(0) == 0");
+  image = image.addBands(BitClouds);
+  // Excluding pixels representing opaque clouds.
+  return image.updateMask(BitClouds.neq(0));
+  };
+  
+  // Retaining pixels without opaque cirri.
+  var maskCirrus = function(image) {
+  // Identifying the quality band.
+  var QA_Cirrus = image.select('pixel_qa');
+  // Identifying the appropriate bitmask values.
+  var BitCirrus = getQABits(QA_Cirrus, 11, 11, 'Cirrus Clouds').expression("b(0) == 0");
+  image = image.addBands(BitCirrus);
+  // Excluding pixels representing cirri.
+  return image.updateMask(BitCirrus.neq(0));
+  };
+  
+  // Excluding pixels that are saturated or defective, dark area pixels, cloud shadows,
+  // clouds with low/medium and high probability, cirrus, water, snow and ice
+  var maskNoanomalies = function(image){
+  // Identifying the quality band.
+  var scl = image.select('pixel_flag');
+  // Identifying the appropriate bitmask values.
+  var clear_pixels = scl.eq(4).or(scl.eq(5)).or(scl.eq(11));
+  // Excluding anomalous pixels.
+  return image.updateMask(clear_pixels);
+  };
+    
+  // Creating a function to mosaic image collection by date, orbit, and spacecraft
+  //(https://gis.stackexchange.com/questions/420009/casting-computed-list-by-using-foreach-reducer-method)
+  function mosaicBy(imcol){
+  // return the collection as a list of images (not an image collection)
+  var imlist = imcol.toList(imcol.size());
+  // Getting all the dates as list.
+  var all_dates = imlist.map(function(im){
+  return ee.Image(im).date().format("YYYY-MM-dd");
+  });
+  // Getting all orbits as list.
+  var all_orbits = imlist.map(function(im){
+  return ee.Image(im).get('SENSING_ORBIT_NUMBER');
+  });
+  // Getting spacecraft names as list.
+  var all_spNames = imlist.map(function(im){
+  return ee.Image(im).get('SPACECRAFT_NAME');
+  });
+  // Putting dates, orbits and names into a nested list
+  var concat_all = all_dates.zip(all_orbits).zip(all_spNames);
+  // Unnesting the list with flatten, and then concatenating elements with " "
+  concat_all = concat_all.map(function(el){
+  return ee.List(el).flatten().join(" ");
+  });
+  // Getting distinct combintations of date, orbit and name.
+  var concat_unique = concat_all.distinct();
+  var mosaic_imlist = concat_unique.map(function(d){
+  // Splitting into components.
+  var d1 = ee.String(d).split(" ");
+  var date1 = ee.Date(d1.get(0));
+  var orbit = ee.Number.parse(d1.get(1)).toInt();
+  var spName = ee.String(d1.get(2));
+  // Filtering with start date, and then end date.
+  var im = imcol
+  .filterDate(date1, date1.advance(1, "day"))
+  .filterMetadata('SPACECRAFT_NAME', 'equals', spName)
+  .filterMetadata('SENSING_ORBIT_NUMBER','equals', orbit)
+  .mosaic();
+  // Rerturing the filtered collection.
+  return im.set(
+  "system:time_start", date1.millis(),
+  "system:date", date1.format("YYYY-MM-dd"),
+  "system:id", d1);
+  });
+  return ee.ImageCollection(mosaic_imlist);
+  }
+  
+  // Definining the period, as well as the area where restrict each remote sensing data collection. 
+  // Getting the multispectral imagery dataset within the selected period for the collections from Sentinel 2, while renaming bands.
+  var filtered = S2.filterDate(start, end).select(bands, band_names).filterBounds(Area)
+  .map(function(img){return img.clip(Area)});
+  
+  // Masking out areas with low quality pixels
+  var HighQuality_Area_Land_FreeClouds = filtered.map(maskClouds).map(maskCirrus).map(maskNoanomalies);
+                                                
+  // First check of image collection.
+  print('First check of image collection:',HighQuality_Area_Land_FreeClouds);
+  
+  // Getting the number of images.
+  var count = HighQuality_Area_Land_FreeClouds.size();
+  
+  print('Count: ', count);
+  
+  // Getting the date range of images in the collection.
+  var range = HighQuality_Area_Land_FreeClouds.reduceColumns(ee.Reducer.minMax(), ["system:time_start"]);
+  
+  print('Date range: ', ee.Date(range.get('min')), ee.Date(range.get('max')));
+  
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sub-step 2: Calculate Spectral Metrics.
+
+  // Defining the formulas.
+  
+  // Creating a function to with all formulas to calculate for Sentinel 2. 
+  var compute_metrics = function(image) {
+
+  // Defining the NDVI formula.
+  var ndvi = image.normalizedDifference(['NIR1', 'RED']).rename('NDVI');
+
+  // Defining the EVI2 formula.
+  var evi2 = image.select('NIR1').subtract(image.select('RED')).divide(image.select('NIR1').add(image.select('RED')).add(1)).multiply(2.4).rename('EVI2');
+  
+  // Defining the MSAVI2 formula.
+  var msavi2  = image.select('NIR1').multiply(2).add(1).subtract(image.select('NIR1').
+  multiply(2).add(1).pow(2).subtract(image.select('NIR1').subtract(image.select('RED')).
+  multiply(8)).sqrt()).divide(2).rename('MSAVI2');
+  
+  // Defining the NDWI formula.
+  var ndwi = image.normalizedDifference(['NIR1', 'SWIR1']).rename('NDWI');
+  
+  // Defining the PSRI formula.
+  var psri = image.select('RED').subtract(image.select('GREEN')).divide(image.select('NIR1')).rename('PSRI');
+  
+  // Defining the NBR formula.
+  var nbr = image.normalizedDifference(['NIR1','SWIR2']).rename('NBR');
+  
+  // Aggregating the calculated bands.
+  return image.addBands(ndvi).addBands(ndvi).addBands(evi2).addBands(msavi2).addBands(ndwi).addBands(psri).addBands(nbr);
+  };
+
+  // Computing and integrating the metrics within the collection.
+  var Spectral_Metrics = HighQuality_Area_Land_FreeClouds.map(compute_metrics);
+  print(Spectral_Metrics);
+  
+  
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Sub-step 3: Apply spatial and temporal scales on calculate metrics for ground-data extraction. 
+
+  // Applying spatial scales
+  // Creating a function to apply (square) Moving Windows to computed metrics, utilising mean as pixel aggregating formula.  // Function to apply Moving Windows to computed metrics, utilising mean and standard deviation
+  var addTexture_3X3_Mean = function(image) {
+  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  // Defining the aggregating formula (i.e, mean)
+  reducer: ee.Reducer.mean().unweighted(),
+  // Defining the shape for Moving Windows (i.e, square or round) and size (e.g., 3)
+  kernel: ee.Kernel.square(3),
+  // Renaming the calculated metrics and returning as bands to the collection
+  }).rename(['RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn']);
+  return image.addBands(texture.add(ee.Image(0.0)));
+  };
+  
+  // Creating a function to apply (square) Moving Windows to computed metrics, utilising standard deviation as pixel aggregating formula.
+  var addTexture_3X3_stdDev = function(image) {
+  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  // Defining the aggregating formula (i.e, standard deviation).
+  reducer: ee.Reducer.stdDev().unweighted(),
+  // Defining the shape for Moving Windows ((e.g., square or round) and size (e.g., 3).
+  kernel: ee.Kernel.square(3),
+  // Renaming the calculated metrics and returning as bands to the collection.
+  }).rename(['RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd']);
+  return image.addBands(texture.add(ee.Image(0.0)));
+  };
+  
+  //Integrating the new calculated metrics within the original collection.
+  var Spectral_Metrics_MnSd = Spectral_Metrics.map(addTexture_3X3_Mean).map(addTexture_3X3_stdDev);
+  
+  // Calculating the gray-level co-occurrence matrix (GLCM), for NDVI.
+  var NDVI_GLCM16bit = Spectral_Metrics_MnSd.select('NDVI')
+  .map (function (image) {
+  var glcm = image.multiply(512).uint8().glcmTexture(3, ee.Kernel.circle(3,'pixels', true)).float().divide(512);
+  return image.addBands(glcm);
+  });
+  
+  // Integrating the textural metrics within the original collection.
+  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM16bit.combine(Spectral_Metrics_MnSd));
+  var Spectral_Metrics = Spectral_Metrics.copyProperties(Spectral_Metrics_MnSd, Spectral_Metrics_MnSd.propertyNames());
+  var Spectral_Metrics = ee.ImageCollection(Spectral_Metrics);
+  
+  // Calling the variable names
+  var varbands = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn',
+  'RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd',
+  'NDVI_savg', 'NDVI_svar',
+  'NDVI_idm','NDVI_corr'];
+  
+  // Selecting words to rename up to 10 characters due to column heading limits in the final Spatial Point Data Frame
+  var varband_names = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
+  'NDWI_3M','PSRI_3M','NBR_3M',
+  'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
+  'NDWI_3S','PSRI_3S','NBR_3S',
+  'GLCM_M', 'GLCM_V', 
+  'GLCM_H','GLCM_C'];
+  
+  // Renaming the Spectral Bands, Spectral Metrics, and Texture variables.
+  var Spectral_Metrics = Spectral_Metrics.select(varbands, varband_names);
+  
+  print('Second check of image collection:', Spectral_Metrics);
+
+  // Depicting a variable as an example (e.g., MSAVI2).
+  //var msavi2 = Spectral_Metrics.select('MSAVI2');
+  // Reducing the collection with a median reducer.
+  //var msavi2 = msavi2.reduce(ee.Reducer.median());
+  // Cliggping within the study area
+  //var msavi2_clipped = msavi2.clip(Area);
+  // Selectign a palette.
+  //var palette = ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718',
+  //             '74A901', '66A000', '529400', '3E8601', '207401', '056201',
+  //             '004C00', '023B01', '012E01', '011D01', '011301'];
+               
+  //Map.addLayer(msavi2_clipped, {bands: 'MSAVI2_median', min:0, max:1,palette: palette}, 'MSAVI2');
+  
+  // Applying temporal scales
+  // First is required to filter the image colletion with a ground-base Spatial-Points-Dataframe (or Spatial-Polygons-Dataframe, or Spatial-Lines-Dataframe)
+  // The filtering process rely on the temporal resolution of the time step (or time stamp) within the ground-based dataset.
+  
+  // Creating an object with spatio-temporally extracted information from groun-data
+  var ExtractedPoints = points.map(function(feature){
+  
+  // Identifying the date associated to each ground observation.
+  var date = ee.Number(feature.get('timestamp2'));
+  
+  // Calling the temporal information in a legible format (e.g., YYYY/MM/dd). 
+  // Others legible formats can be found here: https://developers.google.com/earth-engine/apidocs/ee-date-parse
+  date = ee.Date.parse('YYYY/MM/dd', date);
+  
+  // Determining the size of Moving Windows for temporally scaling remotely sensed information from each time of observation.
+  var startTempWind = date.advance(-4,'days');
+  var endTempWind = date.advance(4,'days');
+  
+  // Selecting the aggregating formula (e.g., mean or standard deviation).
+  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).mean();
+  
+  // Extracting the remotely sensed information using the geometry feature.                 
+  var data = FiltTempWind.reduceRegion(ee.Reducer.mean(), feature.geometry(), 10);
+
+  return ee.Feature(feature.setMulti(data));
+  });
+  
+  // Merging the extracted information with the original Spatial Dataframe.
+  // Calling the original Spatial Dataframe.
+  var OriginalSpatialPointsDataframe = points;
+  
+  // Calling the extracted Spatial Dataframe.
+  var ExtractedSpatialPointsDataframe = ee.FeatureCollection(ExtractedPoints);
+  
+  // Defining the matching field between the two collections.
+  var JoinFilter = ee.Filter.equals({
+  leftField: 'ID',
+  rightField: 'ID'
+  });
+  
+  // Defining the "join" parameter.
+  var ParJoin = ee.Join.inner('primary', 'secondary');
+  
+  // Applying the parameter to concatenate the two collections.
+  var DataframeJoin = ParJoin.apply(OriginalSpatialPointsDataframe, ExtractedSpatialPointsDataframe,  JoinFilter);
+  
+  // Creating a function to collapse the Extracted Spatial Dataframe into the Original Spatial Dataframe.
+  function CollapsJoin(feature){
+  return ee.Feature(feature.get('primary')).copyProperties(feature.get('secondary'));
+  }
+  
+  // Applying the collapse function.
+  var DataframeJoin = DataframeJoin.map(CollapsJoin);
+  print('Check the first row of the SpatialPointsDataframe:', DataframeJoin.first());
+  
+  // Exporting the Spatial Dataframe to a SHP file.
+  Export.table.toDrive({
+  collection: DataframeJoin,
+  description:'Sentinel2_PA_Multispectral_2017',
+  fileFormat: 'SHP'
+  });
+  
+  //Alternatively, the user can indicate specific metrics to write
+  //Export.table.toDrive({
+  //collection: DataframeJoin,
+  //description:'PA_Multispectral_2017',
+  //fileFormat: 'SHP',
+  //selectors: ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  //'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
+  //'NDWI_3M','PSRI_3M','NBR_3M',
+  //'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
+  //'NDWI_3S','PSRI_3S','NBR_3S',
+  //'GLCM_M', 'GLCM_V', 
+  //'GLCM_H','GLCM_C',
+  //'ID','type','ind_ident','timestamp','timestamp2']
+  //});
