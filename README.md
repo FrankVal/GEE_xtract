@@ -12,6 +12,6 @@ Moreover, besides the GEE extraction codes, two secundary directories are availa
 
 1. The first directory contains GEE codes for extracting data from ground data for each satellite. In addition, another directory is present which contains codes for extrapolate variables, hence for writing meaningful habitat metrics for each satellite. The type of metric to be extrapolated can be parameterised and adapted by the user.
 
-2. The second directory is a working example in R on how combine different dataset with remotely sensed extracted information, and how identify significant habitat metrics. 
+2. The second directory contains a working example in R on how combine different dataset with remotely sensed extracted information, and how identify significant habitat metrics. 
 
 3. The third directory refers to telemetry observations used as example for data extraction, and represent the ecological case of study in the manuscript.
