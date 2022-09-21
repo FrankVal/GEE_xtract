@@ -1,0 +1,99 @@
+  // Selecting two MODIS collections, namely GPP and LST
+  var GPP = ee.ImageCollection("MODIS/006/MOD17A2H"),
+  LST = ee.ImageCollection("MODIS/006/MYD11A2"),
+  
+  // Selecting a dataset of example for data extraction, comprising of study area and a spatial point dataframe (entire or subsetted per year)
+  Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area");
+
+  //Defining ground data and representative period
+  var start = "2017-01-01"; //Start of time period //Year/Month/Day/
+  var end = "2017-12-31"; // End of time period
+  
+  // Renaming the variables from the collections
+  var GPPbands = ['Gpp'];
+  var GPPband_names = ['GPP'];
+
+  var LSTbands = ['LST_Day_1km'];
+  var LSTband_names = ['LST'];
+
+  // Definining the period, as well as the area where restrict each remote sensing data collection. 
+  // Getting the dataset within the selected period for the collection GPP, while renaming bands.
+  var GPPfiltered = GPP.filterDate(start, end).select(GPPbands, GPPband_names).map(function(img){return img.clip(Area)}); 
+  var GPPIndices  = GPPfiltered.select('GPP');
+
+  // Getting the dataset within the selected period for the collection LST, while renaming bands.
+  var LSTfiltered = LST.filterDate(start, end).select(LSTbands, LSTband_names).map(function(img){return img.clip(Area)}); 
+  var LSTIndices  = LSTfiltered.select('LST');
+
+ // Scaling unit of measurement to Kelvin and converting to Celsius, while retaining image acquisition time.
+  var LSTIndices = LSTIndices.map(function(img) {
+  return img
+    .multiply(0.02)
+    .subtract(273.15)
+    .copyProperties(img, ['system:time_start']);
+  });
+  
+  // Combining the two MODIS collections
+  var GPP_LST_Indices = ee.ImageCollection(GPPfiltered.combine(LSTIndices));
+
+  print('Second check of image collection - Habitat Metrics:', GPP_LST_Indices);
+
+  // Applying spatial scales
+  // Creating a function to apply (square) Moving Windows to computed metrics, utilising mean as pixel aggregating formula.
+  var addTexture_3X3_Mean = function(image) {
+  var texture = image.select(['GPP','LST']).reduceNeighborhood({
+  // Defining the aggregating formula (i.e, mean)
+  reducer: ee.Reducer.mean().unweighted(),
+  // Defining the shape for Moving Windows (i.e, square or round) and size (e.g., 3)
+  kernel: ee.Kernel.square(3),
+  // Renaming the calculated metrics and returning as bands to the collection
+  }).rename(['GPP_3S_Mn','LST_3S_Mn']);
+  return image.addBands(texture.add(ee.Image(0.0)));
+  };
+  
+  // Creating a function to apply (square) Moving Windows to computed metrics, utilising standard deviation as pixel aggregating formula.
+  var addTexture_3X3_stdDev = function(image) {
+  var texture = image.select(['GPP','LST']).reduceNeighborhood({
+  // Defining the aggregating formula (i.e, standard deviation)
+  reducer: ee.Reducer.stdDev().unweighted(),
+  // Defining the shape for Moving Windows ((e.g., square or round) and size (e.g., 3)
+  kernel: ee.Kernel.square(3),
+  // Renaming the calculated metrics and returning as bands to the collection
+  }).rename(['GPP_3S_Sd','LST_3S_Sd']);
+  return image.addBands(texture.add(ee.Image(0.0)));
+  };
+  
+  var GPP_LST_Indices_MnSd = GPP_LST_Indices.map(addTexture_3X3_Mean).map(addTexture_3X3_stdDev);
+
+
+  // Calling the variable names
+  var varbands = ['GPP','LST',
+  'GPP_3S_Mn','LST_3S_Mn',
+  'GPP_3S_Sd','LST_3S_Sd',
+  ];
+  
+  // Selecting words to rename up to 10 characters due to column heading limits in the final Spatial Point Data Frame
+  var varband_names = ['GPP','LST',
+  'GPP_3M','LST_3M',
+  'GPP_3S','LST_3S',
+  ];
+  
+  // Renaming the Spectral Bands, Spectral Metrics, and Texture variables.
+  var GPP_LST_Indices_MnSd = GPP_LST_Indices_MnSd.select(varbands, varband_names);
+  
+  print('Second check of image collection:', GPP_LST_Indices_MnSd);
+
+  // select lst
+  var lst = GPP_LST_Indices.select('LST');
+  
+  // Reduce the collection with a median reducer.
+  var lst = lst.reduce(ee.Reducer.median());
+
+  Export.image.toDrive({
+  image: lst.clip(Area),
+  region:Area.geometry().bounds(),
+  description: 'LST',
+  scale: 250,
+  maxPixels:1e13,
+  skipEmptyTiles: true
+  });
