@@ -10,8 +10,8 @@ The GEE_xtract code was developed for three public satellites, namely MODIS, Lan
 
 Moreover, besides the GEE extraction codes, two secundary directories are available:
 
-1. One directory represent how to produce variable for extrapolation analysis, hence to write significant habitat metrics, which can be parametrised by the user.
+1. The first directory contains GEE codes for extracting data from ground data for each satellite. In addition, another directory is present which contains codes for extrapolate variables, hence for writing meaningful habitat metrics for each satellite. The type of metric to be extrapolated can be parameterised and adapted by the user.
 
-2. Another directory is a working example on how combine different extrapolated dataset in R, and how identify significant habitat metrics. 
+2. The second directory is a working example in R on how combine different dataset with remotely sensed extracted information, and how identify significant habitat metrics. 
 
-3. The sample data refers to telemetry observation, which is the ecological case of study present in the manuscript.
+3. The third directory refers to telemetry observations used as example for data extraction, and represent the ecological case of study in the manuscript.
