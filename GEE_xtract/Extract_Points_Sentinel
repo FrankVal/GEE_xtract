@@ -18,6 +18,8 @@
   // Selecting a dataset of example for data extraction, comprising of study area and a spatial point dataframe (entire or subsetted per year)
   Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area"),
   // pts_all = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_All_2017_2021"),
+  Abs = ee.FeatureCollection("users/valeriofrank/GEE_xtract/0Abs"),
+  Pre = ee.FeatureCollection("users/valeriofrank/GEE_xtract/1Pre"),
   pts1 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2017");
   // pts2 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2018");
   // pts3 = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Ground_Observations_2019");
@@ -132,7 +134,9 @@
   
   // Masking out areas with low quality pixels
   var HighQuality_Area_Land_FreeClouds = filtered.map(maskClouds).map(maskCirrus).map(maskNoanomalies);
-                                                
+  
+  var HighQuality_Area_Land_FreeClouds = mosaicBy(HighQuality_Area_Land_FreeClouds);
+  
   // First check of image collection.
   print('First check of image collection:',HighQuality_Area_Land_FreeClouds);
   
@@ -251,18 +255,21 @@
   
   print('Second check of image collection:', Spectral_Metrics);
 
-  // Depicting a variable as an example (e.g., MSAVI2).
-  //var msavi2 = Spectral_Metrics.select('MSAVI2');
+    // Depicting a variable as an example (e.g., MSAVI2).
+  var msavi2 = Spectral_Metrics.select('MSAVI2');
   // Reducing the collection with a median reducer.
-  //var msavi2 = msavi2.reduce(ee.Reducer.median());
+  var msavi2 = msavi2.reduce(ee.Reducer.median());
   // Cliggping within the study area
-  //var msavi2_clipped = msavi2.clip(Area);
+  var msavi2_clipped = msavi2.clip(Area);
   // Selectign a palette.
-  //var palette = ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718',
-  //             '74A901', '66A000', '529400', '3E8601', '207401', '056201',
-  //             '004C00', '023B01', '012E01', '011D01', '011301'];
+  var palette = ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718',
+               '74A901', '66A000', '529400', '3E8601', '207401', '056201',
+               '004C00', '023B01', '012E01', '011D01', '011301'];
                
-  //Map.addLayer(msavi2_clipped, {bands: 'MSAVI2_median', min:0, max:1,palette: palette}, 'MSAVI2');
+  Map.addLayer(msavi2_clipped, {bands: 'MSAVI2_median', min:0, max:1,palette: palette}, 'MSAVI2');
+  
+  Map.addLayer(Abs, {color: 'red'}, 'Absences');
+  Map.addLayer(Pre, {color: 'blue'}, 'Presences');
   
   // Applying temporal scales
   // First is required to filter the image colletion with a ground-base Spatial-Points-Dataframe (or Spatial-Polygons-Dataframe, or Spatial-Lines-Dataframe)
@@ -290,6 +297,20 @@
 
   return ee.Feature(feature.setMulti(data));
   });
+  
+  print('Check the first row of data table :', ExtractedPoints.first());
+  
+  // Exporting the Spatial Dataframe to a data table file. Users can join the data table with
+  // the original shapefile by the "ID" column.
+  Export.table.toDrive({
+  collection: ExtractedPoints,
+  description:'Sentinel2_PA_Multispectral_2017',
+  fileFormat: 'CSV',
+  'folder': 'Sentinel2_PA'
+  });
+  
+  // Here users can join the data table to the original shapefile within GEE, 
+  // yet the operation is time-consuming.
   
   // Merging the extracted information with the original Spatial Dataframe.
   // Calling the original Spatial Dataframe.
@@ -323,7 +344,8 @@
   Export.table.toDrive({
   collection: DataframeJoin,
   description:'Sentinel2_PA_Multispectral_2017',
-  fileFormat: 'SHP'
+  fileFormat: 'SHP',
+  'folder': 'Sentinel2_PA'
   });
   
   //Alternatively, the user can indicate specific metrics to write
