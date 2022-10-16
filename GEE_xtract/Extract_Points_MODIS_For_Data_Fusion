@@ -127,8 +127,8 @@
   date = ee.Date.parse('YYYY/MM/dd', date);
   
   // Determining the size of Moving Windows for temporally scaling remotely sensed information from each time of observation.
-  var startTempWind = date.advance(-1,'days');
-  var endTempWind = date.advance(1,'days');
+  var startTempWind = date.advance(-4,'days');
+  var endTempWind = date.advance(4,'days');
   
   // Selecting the aggregating formula (e.g., mean or standard deviation)
   var FiltTempWind = GPP_LST_Indices_MnSd.filterDate(startTempWind, endTempWind)
@@ -139,6 +139,20 @@
   
   return ee.Feature(feature.setMulti(data));
   });
+  
+  print('Check the first row of data table :', ExtractedPoints.first());
+  
+  // Exporting the Spatial Dataframe to a data table file. Users can join the data table with
+  // the original shapefile by the "ID" column.
+  Export.table.toDrive({
+  collection: ExtractedPoints,
+  description:'MODIS_PA_GPP_LST_2017',
+  fileFormat: 'CSV',
+  'folder': 'MODIS_PA_GPP_LST'
+  });
+  
+  // Here users can join the data table to the original shapefile within GEE, 
+  // yet the operation is time-consuming.
   
   // Merging the extracted information with the original Spatial Dataframe
   // Calling the original Spatial Dataframe.
@@ -172,5 +186,6 @@
   Export.table.toDrive({
   collection: DataframeJoin,
   description:'MODIS_PA_GPP_LST_2017',
-  fileFormat: 'SHP'
+  fileFormat: 'SHP',
+  'folder': 'MODIS_PA_GPP_LST'
   });
