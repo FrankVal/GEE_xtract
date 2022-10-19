@@ -2,7 +2,7 @@
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-#### GEE_xtract is a Google Earth Engine (GEE) code for extracting remotely sensed data from ground-based data, at multiple spatial and temporal scales. Here, magnitude and how data is aggregated is defined by the user. Second, while GEE_xtract was primarily conceived to solve ecological scaling issues, on the other hand, it was concomitantly adapted to retain high-quality data, thus avoiding biases and anomalies during data extraction. Third, the code was further prepared for multiple secondary needs, notably to combine data from different sources, to soften computation limits throghout different strategies, and to produce advanced metrics.
+#### GEE_xtract is a Google Earth Engine (GEE) code for extracting remotely sensed data from ground-based data, at multiple spatial and temporal scales. Here, scale magnitude and how data is aggregated is defined by the user. Second, while GEE_xtract was primarily conceived to solve ecological scaling issues, on the other hand, it was concomitantly adapted to retain high-quality data, thus avoiding biases and anomalies during data extraction. Third, the code was further prepared for multiple secondary needs, notably to combine data from different sources, to soften computation limits throghout different strategies, and to produce advanced metrics.
 
 The funcionality of the code, for each of the satellites, can be verified directly on [GEE](https://code.earthengine.google.com/?accept_repo=users/valeriofrank/GEE_xtract), and through a dataset of samples, which is available on [GEE](https://code.earthengine.google.com/?asset=users/valeriofrank/Methods_Ecol_Evol), or from the sample data directory.
 
