@@ -137,8 +137,8 @@
   // The filtering process is a process that uses a temporal moving window around each observation date (timestamp) related to ground observations
   // The information within each moving window for each observation is therefore aggregated, and finally extracted
   
-  // A constructor (addTexture_3X3_Mean) incorporating a temporal scaling function to extract information from groun-data
-  var ExtractedData = pts1.map(function(feature){
+  // A constructor incorporating a temporal scaling function to extract information from groun-data
+  var ExtractedData = points.map(function(feature){
   
   // Here is identified the date associated to each ground observation
   var date = ee.Number(feature.get('timestamp2'));
