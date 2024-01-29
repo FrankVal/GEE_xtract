@@ -104,7 +104,7 @@
   return image.updateMask(BitWater.neq(0));
   };
   
-  // A constructor (maskCloud_conf) incorporating a mask function to retain pixels without high cloud confidence
+  // A constructor (maskCloud_conf) incorporating a mask function to retain pixels at high cloud confidence
   var maskCloud_conf = function(image) {
   // Here the users can indentify the quality band for each imagery
   var QA_Cloud_conf = image.select('pixel_qa');
@@ -115,7 +115,7 @@
   return image.updateMask(Bit_Cloud_conf.eq(0));
   };
   
-  // A constructor (maskCloud_conf) incorporating a mask function to retain pixels without high shadows confidence
+  // A constructor (maskCloud_conf) incorporating a mask function to retain pixels without at shadows confidence
   var maskShadow_conf = function(image) {
   // Here the users can indentify the quality band for each imagery
   var QA_Shadow_conf = image.select('pixel_qa');
@@ -126,7 +126,7 @@
   return image.updateMask(Bit_Shadow_conf.eq(0));
   };
   
-  // A constructor (maskSnow_ice_conf) incorporating a mask function to retain pixels without high snow confidence
+  // A constructor (maskSnow_ice_conf) incorporating a mask function to retain pixels at high snow confidence
   var maskSnow_ice_conf = function(image) {
   // Here the users can indentify the quality band for each imagery
   var QA_Snow_ice_conf = image.select('pixel_qa');
@@ -137,7 +137,7 @@
   return image.updateMask(Bit_Snow_ice_conf.eq(0));
   };
   
-  // A constructor (maskCirrus_conf) incorporating a mask function to retain pixels without high cirrus confidence
+  // A constructor (maskCirrus_conf) incorporating a mask function to retain pixels at high cirrus confidence
   var maskCirrus_conf = function(image) {
   // Here the users can indentify the quality band from each imagery
   var QA_Cirrus_conf = image.select('pixel_qa');
