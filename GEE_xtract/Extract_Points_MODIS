@@ -7,15 +7,15 @@
 
 // * The second sub-step shows how to calculate spectral metrics for each available multispectral image of the time-series
 
-// * The third sub-step demonstrates how to apply spatial and temporal scales along the time-series, then to extract remotely sensed information from ground data.
+// * The third sub-step demonstrates how to apply spatial and temporal scales along the time-series, then to extract remotely sensed information from ground data
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub-step 1: Data filtering
    
   // The user can select MODIS collections (https://developers.google.com/earth-engine/datasets/catalog/modis), 
   //  here the MODIS1 (M1_250) and MODIS2 (M2_500), with native spectral bands
   var M1_250 = ee.ImageCollection("MODIS/061/MOD09GQ"), 
-  M2_500 = ee.ImageCollection("MODIS/061/MOD09GA"),
+      M2_500 = ee.ImageCollection("MODIS/061/MOD09GA"),
     
   // Then, the user should select a ground-data vector, as well study area polygon, that need to be imported within the Earth Engine Code Editor (EECE), 
   // as asset through the Asset Manager (https://developers.google.com/earth-engine/guides/asset_manager)
@@ -273,12 +273,26 @@
   
   // The entire MODIS1 collection may be masked to filter out low quality pixels
   var M1HighQuality_Areas = M1filtered.map(M1maskCPPIQ).map(M1maskHQB1).map(M1maskHQB2).map(M1maskNDB1)
-                          .map(M1maskNDB2).map(M1maskATMP);
+                          .map(M1maskNDB2).map(M1maskATMP).select('RED','NIR1');
                           
   // The entire MODIS2 collection may be masked to filter out low quality pixels
   var M2HighQuality_Areas = M2filtered.map(M2maskCPPIQ).map(M2maskHQB3).map(M2maskHQB4).map(M2maskHQB5)
                           .map(M2maskHQB6).map(M2maskHQB7).map(M2maskNDB3).map(M2maskNDB4).map(M2maskNDB5)
-                          .map(M2maskNDB6).map(M2maskNDB7).map(M2maskATMP);
+                          .map(M2maskNDB6).map(M2maskNDB7).map(M2maskATMP).select('BLUE','GREEN','NIR2','SWIR1','SWIR2');
+                          
+                                                    
+  var resample250 = function(image){
+  var projection =image.select('BLUE').projection();
+  var bands = image.select('BLUE','GREEN','NIR2','SWIR1','SWIR2');
+  var resample = bands.reproject({
+      crs: projection,
+      scale: 250
+    });
+     return resample 
+  .copyProperties(image,['system:time_start','system:time_end']);
+  };
+
+  var M2HighQuality_Areas = M2HighQuality_Areas.map(resample250);
   
     // The two MODIS collections need to be combined
   var HighQuality_Areas = ee.ImageCollection(M1HighQuality_Areas.combine(M2HighQuality_Areas));
@@ -379,9 +393,9 @@
   // Here, scaled metrics are added to the entire collection
   var Spectral_Metrics_MnSd = Spectral_Metrics.map(addTexture_3X3_Mean).map(addTexture_3X3_stdDev);
   
-  // A constructor (NDVI_GLCM16bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
+  // A constructor (NDVI_GLCM8bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
   // Candidate metric to apply gray level co-occurrence matrices is commonly NDVI
-  var NDVI_GLCM16bit = Spectral_Metrics_MnSd.select('NDVI')
+  var NDVI_GLCM8bit = Spectral_Metrics_MnSd.select('NDVI')
   .map (function (image) {
   // Users may here define the textural variables (https://developers.google.com/earth-engine/apidocs/ee-image-glcmtexture)
   // the shape of spatial moving windows (i.e, square or round;https://developers.google.com/earth-engine/apidocs/ee-kernel-circle)
@@ -392,7 +406,7 @@
   });
   
   // Here, textural variables are added to the entire collection
-  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM16bit.combine(Spectral_Metrics_MnSd));
+  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM8bit.combine(Spectral_Metrics_MnSd));
   var Spectral_Metrics = Spectral_Metrics.copyProperties(Spectral_Metrics_MnSd, Spectral_Metrics_MnSd.propertyNames());
   var Spectral_Metrics = ee.ImageCollection(Spectral_Metrics);
   
@@ -435,6 +449,7 @@
   // Plot presences and absences
   Map.addLayer(Abs, {color: 'red'}, 'Absences');
   Map.addLayer(Pre, {color: 'blue'}, 'Presences');
+  Map.centerObject(Pre,7);
   // End of the protocol
   
   // Temporal scaling
