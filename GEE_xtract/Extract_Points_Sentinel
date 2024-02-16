@@ -9,7 +9,7 @@
 
 // * The third sub-step demonstrates how to apply spatial and temporal scales along the time-series, then to extract remotely sensed information from ground data
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub-step 1: Data filtering
 
   // The user can select Sentinel collections (https://developers.google.com/earth-engine/datasets/catalog/sentinel), 
@@ -51,8 +51,8 @@
   };
   
   // Users may rename bands before merging collections of Sentinel sensor
-  var bands = ['B2','B3','B4','B8','B11','B12','QA60','SCL'];
-  var band_names = ['BLUE','GREEN','RED','NIR1','SWIR1','SWIR2','pixel_qa','pixel_flag'];
+  var bands = ['B2','B3','B4','B5','B6','B7','B8','B8A','B11','B12','QA60','SCL'];
+  var band_names = ['BLUE','GREEN','RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','NIR2','SWIR1','SWIR2','pixel_qa','pixel_flag'];
   
   // Masks preparation
   // A constructor (maskClouds) incorporating a mask function to retain pixels without opaque clouds
@@ -146,6 +146,30 @@
   // The mosaic function (mosaicBy) can be applied here
   var HighQuality_Area_Land_FreeClouds = mosaicBy(HighQuality_Area_Land_FreeClouds);
   
+// 'Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR2','SWIR1','SWIR2'
+  // Select a collection with 10m bands
+  var Sentinel_10m_Bands = HighQuality_Area_Land_FreeClouds.select('BLUE','GREEN','RED','NIR1');
+
+  // Select a collection with 20m bands
+  var Sentinel_20m_Bands = HighQuality_Area_Land_FreeClouds.select('Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR2','SWIR1','SWIR2');
+
+  var resample10 = function(image){
+  var projection =image.select('Red_Edge_1').projection();
+  var bands = image.select('Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR2','SWIR1','SWIR2');
+  var resample = bands.reproject({
+      crs: projection,
+      scale: 10
+    });
+     return resample 
+  .copyProperties(image,['system:time_start','system:time_end']);
+};
+
+var Sentinel_20m_Bands = Sentinel_20m_Bands.map(resample10);
+
+// The two MODIS collections need to be combined
+var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.combine(Sentinel_20m_Bands));
+
+  
   // First check of image collection.
   print('First check of image collection:',HighQuality_Area_Land_FreeClouds);
   
@@ -203,7 +227,7 @@
   // Users may eventually change the name of the constuctor if they change some parameter (e.g., addTexture_6X6_Mean)
   var addTexture_3X3_Mean = function(image) {
   // Users may here define which metrics to scale
-  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  var texture = image.select(['RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','NIR2','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
   // Users may here define the type of aggregating formula (i.e, mean; https://developers.google.com/earth-engine/apidocs/ee-reducer-mean)
   // and the type of weight within spatial moving windows (https://developers.google.com/earth-engine/apidocs/ee-reducer-unweighted)
   reducer: ee.Reducer.mean().unweighted(),
@@ -211,7 +235,7 @@
   // and size (e.g., 3)
   kernel: ee.Kernel.circle(3),
   // Calculated metrics may be renamed
-  }).rename(['RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  }).rename(['RED_3S_Mn','Red_Edge_1_3S_Mn','Red_Edge_2_3S_Mn','Red_Edge_3_3S_Mn','NIR1_3S_Mn','NIR2_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
   'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn']);
   // Scaled metrics may be reutrned as new bands
   return image.addBands(texture.add(ee.Image(0.0)));
@@ -221,7 +245,7 @@
   // Users may eventually change the name of the constuctor if they change some parameter (e.g., addTexture_6X6_Mean)
   var addTexture_3X3_stdDev = function(image) {
   // Users may here define which metrics to scale
-  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  var texture = image.select(['RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','NIR2','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
   // Users may here define the type of aggregating formula (i.e, mean; https://developers.google.com/earth-engine/apidocs/ee-reducer-mean)
   // and the type of weight within spatial moving windows (https://developers.google.com/earth-engine/apidocs/ee-reducer-unweighted)
   reducer: ee.Reducer.stdDev().unweighted(),
@@ -229,7 +253,7 @@
   // and size (e.g., 3)
   kernel: ee.Kernel.circle(3),
   // Calculated metrics may be renamed
-  }).rename(['RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  }).rename(['RED_3S_Sd','Red_Edge_1_3S_Sd','Red_Edge_2_3S_Sd','Red_Edge_3_3S_Sd','NIR1_3S_Sd','NIR2_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
   'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd']);
   // Scaled metrics may be reutrned as new bands
   return image.addBands(texture.add(ee.Image(0.0)));
@@ -238,9 +262,9 @@
   // Here, scaled metrics are added to the entire collection
   var Spectral_Metrics_MnSd = Spectral_Metrics.map(addTexture_3X3_Mean).map(addTexture_3X3_stdDev);
   
-  // A constructor (NDVI_GLCM16bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
+  // A constructor (NDVI_GLCM8bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
   // Candidate metric to apply gray level co-occurrence matrices is commonly NDVI
-  var NDVI_GLCM16bit = Spectral_Metrics_MnSd.select('NDVI')
+  var NDVI_GLCM8bit = Spectral_Metrics_MnSd.select('NDVI')
   .map (function (image) {
   // Users may here define the textural variables (https://developers.google.com/earth-engine/apidocs/ee-image-glcmtexture)
   // the shape of spatial moving windows (i.e, square or round;https://developers.google.com/earth-engine/apidocs/ee-kernel-circle)
@@ -251,24 +275,24 @@
   });
   
   // Here, textural variables are added to the entire collection
-  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM16bit.combine(Spectral_Metrics_MnSd));
+  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM8bit.combine(Spectral_Metrics_MnSd));
   var Spectral_Metrics = Spectral_Metrics.copyProperties(Spectral_Metrics_MnSd, Spectral_Metrics_MnSd.propertyNames());
   var Spectral_Metrics = ee.ImageCollection(Spectral_Metrics);
   
   // Identify the variable calculated to retain within the collection
-  var varbands = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
-  'RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  var varbands = ['RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3S_Mn','Red_Edge_1_3S_Mn','Red_Edge_2_3S_Mn','Red_Edge_3_3S_Mn','NIR1_3S_Mn','NIR2_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
   'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn',
-  'RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  'RED_3S_Sd','Red_Edge_1_3S_Sd','Red_Edge_2_3S_Sd','Red_Edge_3_3S_Sd','NIR1_3S_Sd','NIR2_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
   'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd',
   'NDVI_savg', 'NDVI_svar',
   'NDVI_idm','NDVI_corr'];
   
 // Selecting words to rename such variables, up to 10 characters due to column heading limits in the final Spatial Point Data Frame
-  var varband_names = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
-  'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
+  var varband_names = ['RED','REdg__1','REdg__2','REdg_3','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3M','REdg__1_3M','REdg_2_3M','REdg_3_3M','NIR1_3M','NIR2_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
   'NDWI_3M','PSRI_3M','NBR_3M',
-  'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
+  'RED_3S','REdg__1_3S','REdg_2_3S','REdg_3_3S','NIR1_3S','NIR2_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
   'NDWI_3S','PSRI_3S','NBR_3S',
   'GLCM_M', 'GLCM_V', 
   'GLCM_H','GLCM_C'];
@@ -293,6 +317,7 @@
   // Plot presences and absences
   Map.addLayer(Abs, {color: 'red'}, 'Absences');
   Map.addLayer(Pre, {color: 'blue'}, 'Presences');
+  Map.centerObject(Pre,7);
   // End of the protocol
   
   // Temporal scaling
