@@ -227,6 +227,13 @@
   
   // Defining the NDVI formula
   var ndvi = image.normalizedDifference(['NIR1', 'RED']).rename('NDVI');
+
+  // Example of alternative expression of the NDVI formula
+  //  var ndvi = image.expression(
+  // '(NIR1 - RED)/(NIR1 + RED)', {
+  // 'NIR1': image.select('NIR1'),
+  // 'RED': image.select('RED')
+  //  }).rename('NDVI');
   
   // Defining the EVI2 formula
   var evi2 = image.select('NIR1').subtract(image.select('RED')).divide(image.select('NIR1').add(image.select('RED')).add(1)).multiply(2.4).rename('EVI2');
