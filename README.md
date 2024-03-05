@@ -12,3 +12,8 @@ Two secundary directories are available:
 1. The first directory contains GEE codes for extracting data from ground data for each satellite. In addition, another directory is present which contains codes for extrapolate variables, hence for writing meaningful habitat metrics from each satellite. The type of metric to be extrapolated should be prepared by the user following the MSAVI2 example.
 
 2. The second directory contains a working example in R on how combine different dataset with remotely sensed extracted information, with the aim to help users that decided to split data annually.
+
+
+Cite this work:
+
+Valerio F, Godinho S, Marques AT, Crispim-Mendes T, Pita R, Silva JP (2024) GEE_xtract: High-quality remote sensing data preparation and extraction for multiple spatio-temporal ecological scaling. Ecol Inform 80:102502. https://doi.org/10.1016/j.ecoinf.2024.102502
