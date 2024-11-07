@@ -14,7 +14,7 @@
 
   // The user can select Sentinel collections (https://developers.google.com/earth-engine/datasets/catalog/sentinel), 
   //  here the Sentinel-2 (S2), with native spectral bands
-  var S2 = ee.ImageCollection("COPERNICUS/S2_SR"),
+  var S2 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED"),
  
   // Then, the user should select a ground-data vector, as well study area polygon, that need to be imported within the Earth Engine Code Editor (EECE),
   // as asset through the Asset Manager (https://developers.google.com/earth-engine/guides/asset_manager)
