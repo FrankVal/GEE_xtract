@@ -83,7 +83,7 @@
   // Here the users can indentify the quality band for each imagery
   var scl = image.select('pixel_flag');
   // This identifies the appropriate bitmask values during mask application
-  var clear_pixels = scl.eq(4).or(scl.eq(5)).or(scl.eq(11));
+  var clear_pixels = scl.neq(4).and(scl.eq(5)).and(scl.neq(11));
   // Mask application
   return image.updateMask(clear_pixels);
   };
