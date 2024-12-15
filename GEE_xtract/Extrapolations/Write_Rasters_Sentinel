@@ -77,14 +77,22 @@
   return image.updateMask(BitCirrus.neq(0));
   };
   
-  // A constructor (maskClouds) incorporating a mask function to exclude pixels that are saturated or defective, dark area pixels, cloud shadows,
-  // clouds with low/medium and high probability, cirrus, water, snow and ice
-  var maskNoanomalies = function(image){
-  // Here the users can indentify the quality band for each imagery
-  var scl = image.select('pixel_flag');
-  // This identifies the appropriate bitmask values during mask application
-  var clear_pixels = scl.neq(4).and(scl.eq(5)).and(scl.neq(11));
-  // Mask application
+  // A constructor (maskNoanomalies) incorporating a mask function  to exclude specified pixel values (anomalies)
+  var maskNoanomalies = function(image) {
+  // Select the quality band
+  var scl = image.select('pixel_flag'); // Adjust to 'SCL' if needed for Sentinel-2 L2A
+  
+  // Exclude pixels with values 1, 2, 6, 7, 8, 9, 10, and 11
+  var clear_pixels = scl.neq(1) // Not saturated or defective
+                        .and(scl.neq(2)) // Not dark area pixels
+                        .and(scl.neq(6)) // Not cloud shadows
+                        .and(scl.neq(7)) // Not low-probability clouds
+                        .and(scl.neq(8)) // Not medium-probability clouds
+                        .and(scl.neq(9)) // Not high-probability clouds
+                        .and(scl.neq(10)) // Not thin cirrus clouds
+                        .and(scl.neq(11)); // Not snow or ice
+  
+  // Apply the mask
   return image.updateMask(clear_pixels);
   };
     
