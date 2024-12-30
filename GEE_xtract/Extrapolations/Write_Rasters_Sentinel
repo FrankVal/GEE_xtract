@@ -134,7 +134,7 @@
   
   // This function applies scaling factors
   function applyScaleFactors(image) {
-  var opticalBands = image.select(['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2']).multiply(0.0001);
+  var opticalBands = image.select(['BLUE', 'GREEN', 'RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1', 'SWIR1', 'SWIR2']).multiply(0.0001);
   return image.addBands(opticalBands, null, true);
   }
 
