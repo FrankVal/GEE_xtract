@@ -132,12 +132,21 @@
   return ee.ImageCollection(mosaic_imlist);
   }
 
+  // This function applies scaling factors
+  function applyScaleFactors(image) {
+  var opticalBands = image.select(['BLUE', 'GREEN', 'RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','NIR2', 'SWIR1', 'SWIR2']).multiply(0.0001);
+  return image.addBands(opticalBands, null, true);
+  }
+
    // Here the users should define the period, as well as the area where restrict remote sensing data collections
   
   // The Sentinel-2 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
   // and is cut to the study area
   var filtered = S2.filterDate(start, end).select(bands, band_names).filterBounds(Area)
   .map(function(img){return img.clip(Area)});
+
+  // Users can apply scaling factors to switch from Digital Number (DN) to reflectance data
+  var filtered = filtered.map(applyScaleFactors);
 
   // Now the collection may be masked to filter out low quality pixels
   var HighQuality_Area_Land_FreeClouds = filtered.map(maskClouds).map(maskCirrus).map(maskNoanomalies);
