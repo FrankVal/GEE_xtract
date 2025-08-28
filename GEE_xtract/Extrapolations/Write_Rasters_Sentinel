@@ -78,23 +78,14 @@
   };
   
   // A constructor (maskNoanomalies) incorporating a mask function  to exclude specified pixel values (anomalies)
-  var maskNoanomalies = function(image) {
-  // Select the quality band
-  var scl = image.select('pixel_flag'); // Adjust to 'SCL' if needed for Sentinel-2 L2A
-  
-  // Exclude pixels with values 1, 2, 6, 7, 8, 9, 10, and 11
-  var clear_pixels = scl.neq(1) // Not saturated or defective
-                        .and(scl.neq(2)) // Not dark area pixels
-                        .and(scl.neq(6)) // Not cloud shadows
-                        .and(scl.neq(7)) // Not low-probability clouds
-                        .and(scl.neq(8)) // Not medium-probability clouds
-                        .and(scl.neq(9)) // Not high-probability clouds
-                        .and(scl.neq(10)) // Not thin cirrus clouds
-                        .and(scl.neq(11)); // Not snow or ice
-  
-  // Apply the mask
-  return image.updateMask(clear_pixels);
-  };
+ // Keep only clear land + water
+var maskNoanomalies = function(image){
+  var scl = image.select('pixel_flag'); // or 'SCL' if not renamed
+  var keep = scl.eq(4)   // vegetation
+    .or(scl.eq(5))       // bare soil
+    .or(scl.eq(6));      // water
+  return image.updateMask(keep);
+};
     
   // A function to aggregate image collection by their acquisition time, orbit, and spacecraft
   //(https://gis.stackexchange.com/questions/420009/casting-computed-list-by-using-foreach-reducer-method)
