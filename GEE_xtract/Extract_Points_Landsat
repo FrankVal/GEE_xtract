@@ -385,12 +385,9 @@
   // A constructor incorporating a temporal scaling function to extract information from groun-data
   var ExtractedData = points.map(function(feature){
   
-  // Here is identified the date associated to each ground observation
-  var date = ee.Number(feature.get('timestamp2'));
-  
-  // The temporal information should be imported in a legible format (e.g., YYYY/MM/dd). 
+  // Parse the feature timestamp (stored as a string "YYYY/MM/dd") into an ee.Date.
   // Others legible formats can be found here: https://developers.google.com/earth-engine/apidocs/ee-date-parse
-  date = ee.Date.parse('YYYY/MM/dd', date);
+  var date = ee.Date.parse('YYYY/MM/dd', ee.String(feature.get('timestamp2')));
   
   // Here users may set the size of Moving Windows for temporally scaling remotely sensed information forward and backward from each observation timestamp
   var startTempWind = date.advance(-3,'days');
