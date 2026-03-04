@@ -54,7 +54,7 @@
   };
   
   // Users need to rename bands before merging collections of Landsat sensors (4,5,8)
-  var bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5','SR_B7', 'SR_B6', 'pixel_qa'];
+  var bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5','SR_B7', 'ST_B6', 'pixel_qa'];
   var band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'T','pixel_qa'];
   var l8bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'SR_B1','QA_PIXEL'];
   var l8band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'UB', 'pixel_qa'];
