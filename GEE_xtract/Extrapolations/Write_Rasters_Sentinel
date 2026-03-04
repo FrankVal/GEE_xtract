@@ -210,7 +210,7 @@ var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.com
   var ndwi = image.normalizedDifference(['NIR1', 'SWIR1']).rename('NDWI');
   
   // Defining the PSRI formula
-  var psri = image.select('RED').subtract(image.select('GREEN')).divide(image.select('NIR1')).rename('PSRI');
+  var psri = image.select('RED').subtract(image.select('BLUE')).divide(image.select('Red_Edge_2')).rename('PSRI');
   
   // Defining the NBR formula
   var nbr = image.normalizedDifference(['NIR1','SWIR2']).rename('NBR');
