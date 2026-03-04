@@ -216,7 +216,7 @@ var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.com
   var nbr = image.normalizedDifference(['NIR1','SWIR2']).rename('NBR');
   
   // Metrics calculation
-  return image.addBands(ndvi).addBands(ndvi).addBands(evi2).addBands(msavi2).addBands(ndwi).addBands(psri).addBands(nbr);
+  return image.addBands(ndvi).addBands(evi2).addBands(msavi2).addBands(ndwi).addBands(psri).addBands(nbr);
   };
 
   // Here, metrics are added to the entire collection
