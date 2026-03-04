@@ -326,7 +326,7 @@
   var ndwi = image.normalizedDifference(['NIR1', 'NIR2']).rename('NDWI');
   
   // Defining the PSRI formula
-  var psri = image.select('RED').subtract(image.select('GREEN')).divide(image.select('NIR1')).rename('PSRI');
+  var psri = image.select('RED').subtract(image.select('BLUE')).divide(image.select('NIR1')).rename('PSRI');
   
   // Defining the NBR formula
   var nbr = image.normalizedDifference(['NIR1','SWIR2']).rename('NBR');
