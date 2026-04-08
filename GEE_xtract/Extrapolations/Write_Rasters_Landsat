@@ -9,7 +9,7 @@
 
 // * The third sub-step demonstrates how to apply spatial and temporal scales along the time-series, then to extract remotely sensed information from ground data
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub-step 1: Data filtering
 
   // The user can select Landsat collections (https://developers.google.com/earth-engine/datasets/catalog/landsat), 
@@ -40,7 +40,7 @@
   };
   
   // Users need to rename bands before merging collections of Landsat sensors (4,5,8)
-  var bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5','SR_B7', 'ST_B6', 'pixel_qa'];
+  var bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5','SR_B7', 'ST_B6', 'QA_PIXEL'];
   var band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'T','pixel_qa'];
   var l8bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'SR_B1','QA_PIXEL'];
   var l8band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'UB', 'pixel_qa'];
@@ -133,6 +133,14 @@
   // Mask application
   return image.updateMask(Bit_Cirrus_conf.eq(0));
   };
+  
+  // A constructor (maskFillDilated) incorporating a mask function to mask out pixels at dilated cloud
+  var maskFillDilated = function(image) {
+  var qa = image.select('pixel_qa');
+  var ok = qa.bitwiseAnd(1).eq(0)      // bit 0: fill
+    .and(qa.bitwiseAnd(1 << 1).eq(0)); // bit 1: dilated cloud
+  return image.updateMask(ok);
+  };
 
   // This function applies scaling factors
   function applyScaleFactors(image) {
@@ -144,12 +152,12 @@
   // with those of other Landsat satellites, using coefficients from Roy et al. 2016
   // https://doi.org/10.1016/j.rse.2015.12.024
   var l8_harmonize = function(l8img){
-  var b = ee.Image(0.0183).add(ee.Image(0.8850).multiply(l8img.select('BLUE'))).int16();
-  var g = ee.Image(0.0123).add(ee.Image(0.9317).multiply(l8img.select('GREEN'))).int16();
-  var r = ee.Image(0.0123).add(ee.Image(0.9372).multiply(l8img.select('RED'))).int16();
-  var nir = ee.Image(0.0448).add(ee.Image(0.8339).multiply(l8img.select('NIR1'))).int16();
-  var swir1 = ee.Image(0.0306).add(ee.Image(0.8639).multiply(l8img.select('SWIR1'))).int16();
-  var swir2 = ee.Image(0.0116).add(ee.Image(0.9165).multiply(l8img.select('SWIR2'))).int16();
+  var b = ee.Image(0.0183).add(ee.Image(0.8850).multiply(l8img.select('BLUE')));
+  var g = ee.Image(0.0123).add(ee.Image(0.9317).multiply(l8img.select('GREEN')));
+  var r = ee.Image(0.0123).add(ee.Image(0.9372).multiply(l8img.select('RED')));
+  var nir = ee.Image(0.0448).add(ee.Image(0.8339).multiply(l8img.select('NIR1')));
+  var swir1 = ee.Image(0.0306).add(ee.Image(0.8639).multiply(l8img.select('SWIR1')));
+  var swir2 = ee.Image(0.0116).add(ee.Image(0.9165).multiply(l8img.select('SWIR2')));
   var out = ee.Image(b.addBands(g).addBands(r).addBands(nir).addBands(swir1).addBands(swir2)
   .addBands(l8img.select(['UB', 'pixel_qa'])).copyProperties(l8img, l8img.propertyNames())).rename(l8band_names);
   return out;
@@ -192,18 +200,19 @@
   var l8 = ee.ImageCollection(L8).select(l8bands, l8band_names).filterDate(start, end).filterBounds(Area)
   .map(function(img){return img.clip(Area)});
   var l8 = mosaicBy(l8); //User should use the data aggregation function (mosaicBy) only when study period reflect Landsat 8 lifespan
-  
+   
+  var l4 = l4.map(applyScaleFactors);
+  var l5 = l5.map(applyScaleFactors);
+  var l8 = l8.map(applyScaleFactors);
+
   // The harmonisation function (l8_harmonize) may be applied
   var l8h = l8.map(l8_harmonize);
   
   // The three Landsat collections are combined with harmonized band names and spectral properties
   var landsat_raw = ee.ImageCollection(l4.merge(l5).merge(l8)).select(['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'pixel_qa']);
   
-  // Once combined, users can apply scaling factors to switch from Digital Number (DN) to reflectance data
-  var landsat_raw = landsat_raw.map(applyScaleFactors);
-  
   // Now the entire collection may be masked to filter out low quality pixels
-  var HighQuality_Areas = landsat_raw.map(maskClouds).map(maskCloud_shadow).map(maskSnow).map(maskWater).map(maskCloud_conf)
+  var HighQuality_Areas = landsat_raw.map(maskFillDilated).map(maskClouds).map(maskCloud_shadow).map(maskSnow).map(maskWater).map(maskCloud_conf)
                            .map(maskShadow_conf).map(maskSnow_ice_conf).map(maskCirrus_conf);
                            
   // First check of image collection
@@ -227,7 +236,7 @@
   
   // Defining the NDVI formula
   var ndvi = image.normalizedDifference(['NIR1', 'RED']).rename('NDVI');
-
+  
   // Example of alternative expression of the NDVI formula
   //  var ndvi = image.expression(
   // '(NIR1 - RED)/(NIR1 + RED)', {
@@ -305,20 +314,35 @@
   // Here, scaled metrics are added to the entire collection
   var Spectral_Metrics_MnSd = Spectral_Metrics.map(addTexture_3X3_Mean).map(addTexture_3X3_stdDev);
   
-  // A constructor (NDVI_GLCM16bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
+  // A constructor (NDVI_GLCM8bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
   // Candidate metric to apply gray level co-occurrence matrices is commonly NDVI
-  var NDVI_GLCM16bit = Spectral_Metrics_MnSd.select('NDVI')
-  .map (function (image) {
+  var NDVI_GLCM8bit = Spectral_Metrics_MnSd.select('NDVI')
+  .map(function(image) {
+  var ndvi8 = image.clamp(-1, 1).add(1).multiply(127.5).toUint8();
   // Users may here define the textural variables (https://developers.google.com/earth-engine/apidocs/ee-image-glcmtexture)
   // the shape of spatial moving windows (i.e, square or round;https://developers.google.com/earth-engine/apidocs/ee-kernel-circle)
   // and size (e.g., 3)
-  var glcm = image.multiply(512).uint8().glcmTexture(3, ee.Kernel.circle(3,'pixels', true)).float().divide(512);
-  // Scaled metrics may be reutrned as new bands
+  var glcm = ndvi8
+  .glcmTexture(3, ee.Kernel.circle(3, 'pixels', true))
+  .select(['NDVI_savg', 'NDVI_svar', 'NDVI_idm', 'NDVI_corr']);
+  // Replace original NDVI_savg with NDVI-like scaled value, keeping same name
+  glcm = glcm.addBands(
+  glcm.select('NDVI_savg').divide(255).subtract(1).rename('NDVI_savg'),
+  null,
+  true
+  );
+  // Rescale only variation (NDVI_svar), keeping same name
+  glcm = glcm.addBands(
+  glcm.select('NDVI_svar').divide(255).rename('NDVI_svar'),
+  null,
+  true
+  );
+  // Scaled metrics may be returned as new bands
   return image.addBands(glcm);
   });
   
   // Here, textural variables are added to the entire collection
-  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM16bit.combine(Spectral_Metrics_MnSd));
+  var Spectral_Metrics = ee.ImageCollection(NDVI_GLCM8bit.combine(Spectral_Metrics_MnSd));
   var Spectral_Metrics = Spectral_Metrics.copyProperties(Spectral_Metrics_MnSd, Spectral_Metrics_MnSd.propertyNames());
   var Spectral_Metrics = ee.ImageCollection(Spectral_Metrics);
   
