@@ -165,8 +165,21 @@ var maskNoanomalies = function(image){
 
 var Sentinel_20m_Bands = Sentinel_20m_Bands.map(resample10);
 
-// The two MODIS collections need to be combined
-var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.combine(Sentinel_20m_Bands));
+// The two collections need to be combined
+// var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.combine(Sentinel_20m_Bands));
+
+// NEW
+var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
+  ee.Join.inner().apply(
+    Sentinel_10m_Bands,
+    Sentinel_20m_Bands,
+    ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
+  ).map(function(f) {
+    var i10 = ee.Image(f.get('primary'));
+    var i20 = ee.Image(f.get('secondary'));
+    return i10.addBands(i20).copyProperties(i10, i10.propertyNames());
+  })
+);
 
   
   // First check of image collection.
