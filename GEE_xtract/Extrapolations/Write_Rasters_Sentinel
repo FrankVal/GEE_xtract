@@ -122,23 +122,23 @@ var maskNoanomalies = function(image){
   });
   return ee.ImageCollection(mosaic_imlist);
   }
-
+  
   // This function applies scaling factors
   function applyScaleFactors(image) {
   var opticalBands = image.select(['BLUE', 'GREEN', 'RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','NIR2', 'SWIR1', 'SWIR2']).multiply(0.0001);
   return image.addBands(opticalBands, null, true);
   }
-
+  
    // Here the users should define the period, as well as the area where restrict remote sensing data collections
   
   // The Sentinel-2 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
   // and is cut to the study area
   var filtered = S2.filterDate(start, end).select(bands, band_names).filterBounds(Area)
   .map(function(img){return img.clip(Area)});
-
+  
   // Users can apply scaling factors to switch from Digital Number (DN) to reflectance data
   var filtered = filtered.map(applyScaleFactors);
-
+  
   // Now the collection may be masked to filter out low quality pixels
   var HighQuality_Area_Land_FreeClouds = filtered.map(maskClouds).map(maskCirrus).map(maskNoanomalies);
   
@@ -180,7 +180,6 @@ var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
     return i10.addBands(i20).copyProperties(i10, i10.propertyNames());
   })
 );
-
   
   // First check of image collection.
   print('First check of image collection:',HighQuality_Area_Land_FreeClouds);
@@ -203,7 +202,7 @@ var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
 
   // Defining the NDVI formula
   var ndvi = image.normalizedDifference(['NIR1', 'RED']).rename('NDVI');
-
+  
   // Example of alternative expression of the NDVI formula
   //  var ndvi = image.expression(
   // '(NIR1 - RED)/(NIR1 + RED)', {
@@ -284,12 +283,27 @@ var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
   // A constructor (NDVI_GLCM8bit) incorporating a scaling function that utilise Spatial Moving Windows of 3 pixels size, and gray level co-occurrence matrices as aggregating formulae 
   // Candidate metric to apply gray level co-occurrence matrices is commonly NDVI
   var NDVI_GLCM8bit = Spectral_Metrics_MnSd.select('NDVI')
-  .map (function (image) {
+  .map(function(image) {
+  var ndvi8 = image.clamp(-1, 1).add(1).multiply(127.5).toUint8();
   // Users may here define the textural variables (https://developers.google.com/earth-engine/apidocs/ee-image-glcmtexture)
   // the shape of spatial moving windows (i.e, square or round;https://developers.google.com/earth-engine/apidocs/ee-kernel-circle)
   // and size (e.g., 3)
-  var glcm = image.multiply(512).uint8().glcmTexture(3, ee.Kernel.circle(3,'pixels', true)).float().divide(512);
-  // Scaled metrics may be reutrned as new bands
+  var glcm = ndvi8
+  .glcmTexture(3, ee.Kernel.circle(3, 'pixels', true))
+  .select(['NDVI_savg', 'NDVI_svar', 'NDVI_idm', 'NDVI_corr']);
+  // Replace original NDVI_savg with NDVI-like scaled value, keeping same name
+  glcm = glcm.addBands(
+  glcm.select('NDVI_savg').divide(255).subtract(1).rename('NDVI_savg'),
+  null,
+  true
+  );
+  // Rescale only variation (NDVI_svar), keeping same name
+  glcm = glcm.addBands(
+  glcm.select('NDVI_svar').divide(255).rename('NDVI_svar'),
+  null,
+  true
+  );
+  // Scaled metrics may be returned as new bands
   return image.addBands(glcm);
   });
   
