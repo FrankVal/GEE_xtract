@@ -419,17 +419,18 @@
   var endTempWind = date.advance(9,'days');
   
   // Here users may set the aggregating formula (e.g., mean, standard deviation, etc.)
-  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).mean();
+  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).median();
   
-  // Remotely sensed information is extracted using the geometry feature (ground data)            
-  var data = FiltTempWind.reduceRegion(ee.Reducer.first(), feature.geometry(), 30);
-  // For polygons (or polylines)
-  //// Aggregate values inside each polygon //var data = FiltTempWind.reduceRegion({//reducer: ee.Reducer.mean(),//geometry: feature.geometry(),//scale: 10,/maxPixels: 1e9,//bestEffort: true })
-  
+  // Remotely sensed information is extracted using the geometry feature (ground point data)
+  var data = FiltTempWind.reduceRegion({
+  reducer: ee.Reducer.first(),
+  geometry: ee.Feature(feature).geometry(),
+  scale: 250,
+  maxPixels: 1e9
+  });
 
-  
   // Returns a data table
-  return ee.Feature(feature.setMulti(data));
+  return ee.Feature(feature).set(data);
   });
   
   print('Check the first row of data table :', ExtractedData.first());
