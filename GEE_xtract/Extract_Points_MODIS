@@ -1,4 +1,4 @@
-// The GEE_extract code prepared for extracting data from Landsat satellites
+// The GEE_extract code prepared for extracting data from MODIS satellites
 
 // The code is organised into three sub-steps: 
 
@@ -11,12 +11,11 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub-step 1: Data filtering
-
-  // The user can select Landsat collections (https://developers.google.com/earth-engine/datasets/catalog/landsat), 
-  // here the Landsat 4 (L4), Landsat 5 (L5), and Landsat 8(L8), with native spectral bands
-  var L4 = ee.ImageCollection("LANDSAT/LT04/C02/T1_L2"),
-  L5 = ee.ImageCollection("LANDSAT/LT05/C02/T1_L2"),
-  L8 = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2"),
+   
+  // The user can select MODIS collections (https://developers.google.com/earth-engine/datasets/catalog/modis), 
+  //  here the MODIS1 (M1_250) and MODIS2 (M2_500), with native spectral bands
+  var M1_250 = ee.ImageCollection("MODIS/061/MOD09GQ"), 
+  M2_500 = ee.ImageCollection("MODIS/061/MOD09GA"),
     
   // Then, the user should select a ground-data vector, as well study area polygon, that need to be imported within the Earth Engine Code Editor (EECE), 
   // as asset through the Asset Manager (https://developers.google.com/earth-engine/guides/asset_manager)
@@ -32,12 +31,12 @@
   
   Area = ee.FeatureCollection("users/valeriofrank/GEE_xtract/Study_Area"); //The study area vector used as example
     
-  // Here the user can specify the ground data vector (e.g., pts2) as an object and select the period considered for the time-series
+  // Here the user can specify the ground data vector (e.g., pts1) as an object and select the period considered for the time-series
   // These objects are depicted here to allow for quick parameter changes when extracting data from multiple datasets representing different periods
-  var points = pts_all;//Users may repeat this step for other dataframes (pt1, pt3, etc), which are separated by year
+  var points = pts1;//Users may repeat this step for other dataframes (pt2, pt3, etc), which are separated by year
                     //Alternatively, they can possibly run the entire dataset (pts_all)
-  var start = "2018-01-01"; //Start of time period (Year-Month-Day)
-  var end = "2018-12-31"; // End of time period
+  var start = "2017-01-01"; //Start of time period (Year-Month-Day)
+  var end = "2017-12-31"; // End of time period
   
   // A constructor (getQABits) incorporating a function to extract the quality assessment (QA) bits
   var getQABits = function(image, start, end, newName) {
@@ -46,189 +45,262 @@
   for (var i = start; i <= end; i++) {
   pattern += Math.pow(2, i);
   }
-  
   // Returning a single band image of the extracted QA bits
   return image.select([0], [newName])
   .bitwiseAnd(pattern)
   .rightShift(start);
   };
-  
-  // Users need to rename bands before merging collections of Landsat sensors (4,5,8)
-  var bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5','SR_B7', 'ST_B6', 'QA_PIXEL'];
-  var band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'T','pixel_qa'];
-  var l8bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7', 'SR_B1','QA_PIXEL'];
-  var l8band_names = ['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'UB', 'pixel_qa'];
+
+  // Users may rename bands before merging collections of MODIS sensors
+  var M1_250bands = [ 'sur_refl_b01','sur_refl_b02', 'QC_250m'];
+  var M1_250band_names = ['RED','NIR1','pixel_qa_250'];
+  var M2_500bands = ['sur_refl_b03','sur_refl_b04','sur_refl_b05','sur_refl_b06','sur_refl_b07', 'QC_500m'];
+  var M2_500band_names = ['BLUE','GREEN','NIR2','SWIR1','SWIR2','pixel_qa_500'];
   
   // Masks preparation
-  // A constructor (maskClouds) incorporating a mask function to retain pixels without clouds
-  var maskClouds = function(image) {
+  // A constructor (M1maskCPPIQ) incorporating a mask function to retain a corrected product at ideal quality (CPPIQ) for MODIS1 sensor
+  var M1maskCPPIQ = function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Clouds = image.select('pixel_qa');
+  var QA_CPPIQ = image.select('pixel_qa_250');
   // This identifies the appropriate bitmask values during mask application
-  var BitClouds = getQABits(QA_Clouds, 3, 3, 'Clouds').expression("b(0) == 0");
-  image = image.addBands(BitClouds);
+  var BitCPPIQ = getQABits(QA_CPPIQ, 0, 1, 'CPPIQ').expression("b(0) == 0 ");
+  image = image.addBands(BitCPPIQ);
   // Mask application
-  return image.updateMask(BitClouds.neq(0));
+  return image.updateMask(BitCPPIQ.neq(0));
   };
   
-  // A constructor (maskClouds) incorporating a mask function to retain pixels without shadows
-  var maskCloud_shadow = function(image) {
+  // A constructor (M2maskCPPIQ) incorporating a mask function to retain a corrected product at ideal quality (CPPIQ) for MODIS2 sensor
+  var M2maskCPPIQ = function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Cloud_shadow = image.select('pixel_qa');
+  var QA_CPPIQ = image.select('pixel_qa_500');
   // This identifies the appropriate bitmask values during mask application
-  var BitCloud_shadow = getQABits(QA_Cloud_shadow, 4, 4, 'Cloud shadows').expression("b(0) == 0");
-  image = image.addBands(BitCloud_shadow);
+  var BitCPPIQ = getQABits(QA_CPPIQ, 0, 1, 'CPPIQ').expression("b(0) == 0 ");
+  image = image.addBands(BitCPPIQ);
   // Mask application
-  return image.updateMask(BitCloud_shadow.neq(0));
+  return image.updateMask(BitCPPIQ.neq(0));
   };
   
-  // A constructor (maskSnow) incorporating a mask function to retain pixels without snow elements
-  var maskSnow = function(image) {
+  // A constructor (M1maskHQB1) incorporating a mask function to retain highest quality from band 1 (HQB1) for MODIS1 sensor
+  var M1maskHQB1 = function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Snow = image.select('pixel_qa');
+  var QA_HQB1 = image.select('pixel_qa_250');
   // This identifies the appropriate bitmask values during mask application
-  var BitSnow = getQABits(QA_Snow, 5, 5, 'Snow').expression("b(0) == 0");
-  image = image.addBands(BitSnow);
+  var BitHQB1 = getQABits(QA_HQB1, 4, 7, 'HQB1').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB1);
   // Mask application
-  return image.updateMask(BitSnow.neq(0));
+  return image.updateMask(BitHQB1.neq(0));
   };
   
-  // A constructor (maskWater) incorporating a mask function to retain pixels without water elements
-  var maskWater = function(image) {
+  // A constructor (M1maskHQB2) incorporating a mask function to retain highest quality from band 2 (HQB2) for MODIS2 sensor
+  var M1maskHQB2 = function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Water = image.select('pixel_qa');
+  var QA_HQB2 = image.select('pixel_qa_250');
   // This identifies the appropriate bitmask values during mask application
-  var BitWater = getQABits(QA_Water, 7, 7, 'Water').expression("b(0) == 0");
-  image = image.addBands(BitWater);
-  // Mask application
-  return image.updateMask(BitWater.neq(0));
+  var BitHQB2 = getQABits(QA_HQB2, 8, 11, 'HQB2').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB2);
+   // Mask application
+  return image.updateMask(BitHQB2.neq(0));
   };
   
-  // A constructor (maskCloud_conf) incorporating a mask function to retain pixels at high cloud confidence
-  var maskCloud_conf = function(image) {
+  // A constructor (M2maskHQB3) incorporating a mask function to retain highest quality from band 3 (HQB3) for MODIS1 sensor
+  var M2maskHQB3= function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Cloud_conf = image.select('pixel_qa');
+  var QA_HQB3 = image.select('pixel_qa_500');
   // This identifies the appropriate bitmask values during mask application
-  var Bit_Cloud_conf = getQABits(QA_Cloud_conf, 8, 9, 'Cloud Confidence').expression("b(0) > 1");
-  image = image.addBands(Bit_Cloud_conf);
+  var BitHQB3 = getQABits(QA_HQB3, 10, 13, 'HQB3').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB3);
   // Mask application
-  return image.updateMask(Bit_Cloud_conf.eq(0));
+  return image.updateMask(BitHQB3.neq(0));
   };
   
-  // A constructor (maskCloud_conf) incorporating a mask function to retain pixels at high shadows confidence
-  var maskShadow_conf = function(image) {
+  // A constructor (M2maskHQB4) incorporating a mask function to retain highest quality from band 4 (HQB4) for MODIS2 sensor
+  var M2maskHQB4 = function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Shadow_conf = image.select('pixel_qa');
+  var QA_HQB4 = image.select('pixel_qa_500');
   // This identifies the appropriate bitmask values during mask application
-  var Bit_Shadow_conf = getQABits(QA_Shadow_conf, 10, 11, 'Shadow Confidence').expression("b(0) > 1");
-  image = image.addBands(Bit_Shadow_conf);
+  var BitHQB4 = getQABits(QA_HQB4, 14, 17, 'HQB4').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB4);
   // Mask application
-  return image.updateMask(Bit_Shadow_conf.eq(0));
+  return image.updateMask(BitHQB4.neq(0));
   };
   
-  // A constructor (maskSnow_ice_conf) incorporating a mask function to retain pixels at high snow confidence
-  var maskSnow_ice_conf = function(image) {
+  // A constructor (M2maskHQB5) incorporating a mask function to retain highest quality from band 5 (HQB5) for MODIS2 sensor
+  var M2maskHQB5 = function(image) {
   // Here the users can indentify the quality band for each imagery
-  var QA_Snow_ice_conf = image.select('pixel_qa');
+  var QA_HQB5 = image.select('pixel_qa_500');
   // This identifies the appropriate bitmask values during mask application
-  var Bit_Snow_ice_conf = getQABits(QA_Snow_ice_conf, 12, 13, 'Snow/Ice Confidence').expression("b(0) > 1");
-  image = image.addBands(Bit_Snow_ice_conf);
+  var BitHQB5 = getQABits(QA_HQB5, 18, 21, 'HQB5').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB5);
   // Mask application
-  return image.updateMask(Bit_Snow_ice_conf.eq(0));
+  return image.updateMask(BitHQB5.neq(0));
   };
   
-  // A constructor (maskCirrus_conf) incorporating a mask function to retain pixels at high cirrus confidence
-  var maskCirrus_conf = function(image) {
-  // Here the users can indentify the quality band from each imagery
-  var QA_Cirrus_conf = image.select('pixel_qa');
+  // A constructor (M2maskHQB6) incorporating a mask function to retain highest quality from band 6 (HQB6) for MODIS2 sensor
+  var M2maskHQB6 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_HQB6 = image.select('pixel_qa_500');
   // This identifies the appropriate bitmask values during mask application
-  var Bit_Cirrus_conf = getQABits(QA_Cirrus_conf, 14, 15, 'Cirrus Confidence').expression("b(0) > 1");
-  image = image.addBands(Bit_Cirrus_conf);
-  // Mask application
-  return image.updateMask(Bit_Cirrus_conf.eq(0));
+  var BitHQB6 = getQABits(QA_HQB6, 22, 25, 'HQB6').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB6);
+  return image.updateMask(BitHQB6.neq(0));
   };
   
-  // A constructor (maskFillDilated) incorporating a mask function to mask out pixels at dilated cloud
-  var maskFillDilated = function(image) {
-  var qa = image.select('pixel_qa');
-  var ok = qa.bitwiseAnd(1).eq(0)      // bit 0: fill
-    .and(qa.bitwiseAnd(1 << 1).eq(0)); // bit 1: dilated cloud
-  return image.updateMask(ok);
+  // A constructor (M2maskHQB7) incorporating a mask function to retain highest quality from band 7 (HQB7) for MODIS2 sensor
+  var M2maskHQB7 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_HQB7 = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitHQB7 = getQABits(QA_HQB7, 26, 29, 'HQB7').expression("b(0) == 0 ");
+  image = image.addBands(BitHQB7);
+  // Mask application
+  return image.updateMask(BitHQB7.neq(0));
   };
-
+  
+  // A constructor (M1maskNDB1) incorporating a mask function to exclude missing, noisy and dead pixels from band 1 (NDB1) for MODIS1 sensor
+  var M1maskNDB1 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB1 = image.select('pixel_qa_250');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB1 = getQABits(QA_NDB1, 4, 7, 'NDB1').expression("b(0) == 7 || b(0) == 8 || b(0) == 11");
+  image = image.addBands(BitNDB1);
+  // Mask application
+  return image.updateMask(BitNDB1.eq(0));
+  };
+  
+  // A constructor (M1maskNDB2) incorporating a mask function to exclude missing, noisy and dead pixels from band 2 (NDB2) for MODIS1 sensor
+  var M1maskNDB2 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB2 = image.select('pixel_qa_250');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB2 = getQABits(QA_NDB2, 8, 11, 'NDB2').expression("b(0) == 7 || b(0) == 8|| b(0) == 11");
+  image = image.addBands(BitNDB2);
+  // Mask application
+  return image.updateMask(BitNDB2.eq(0));
+  };
+  
+  // A constructor (M2maskNDB3) incorporating a mask function to exclude missing, noisy and dead pixels from band 3 (NDB3) for MODIS2 sensor
+  var M2maskNDB3 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB3 = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB3 = getQABits(QA_NDB3, 10, 13, 'NDB3').expression("b(0) == 7 || b(0) == 8|| b(0) == 11");
+  image = image.addBands(BitNDB3);
+  // Mask application
+  return image.updateMask(BitNDB3.eq(0));
+  };
+  
+  // A constructor (M2maskNDB4) incorporating a mask function to exclude missing, noisy and dead pixels from band 4 (NDB4) for MODIS2 sensor
+  var M2maskNDB4 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB4 = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB4 = getQABits(QA_NDB4, 14, 17, 'NDB4').expression("b(0) == 7 || b(0) == 8|| b(0) == 11");
+  image = image.addBands(BitNDB4);
+  // Mask application
+  return image.updateMask(BitNDB4.eq(0));
+  };
+  
+  // A constructor (M2maskNDB5) incorporating a mask function to exclude missing, noisy and dead pixels from band 5 (NDB5) for MODIS2 sensor
+  var M2maskNDB5 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB5 = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB5 = getQABits(QA_NDB5, 18, 21, 'NDB5').expression("b(0) == 7 || b(0) == 8|| b(0) == 11");
+  image = image.addBands(BitNDB5);
+  // Mask application
+  return image.updateMask(BitNDB5.eq(0));
+  };
+  
+  // A constructor (M2maskNDB6) incorporating a mask function to exclude missing, noisy and dead pixels from band 6 (NDB6) for MODIS2 sensor
+  var M2maskNDB6 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB6 = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB6 = getQABits(QA_NDB6, 22, 25, 'NDB6').expression("b(0) == 7 || b(0) == 8|| b(0) == 11");
+  image = image.addBands(BitNDB6);
+  // Mask application
+  return image.updateMask(BitNDB6.eq(0));
+  };
+  
+  // A constructor (M2maskNDB7) incorporating a mask function to exclude missing, noisy and dead pixels from band 7 (NDB7) for MODIS2 sensor
+  var M2maskNDB7 = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_NDB7 = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitNDB7 = getQABits(QA_NDB7, 26, 29, 'NDB7').expression("b(0) == 7 || b(0) == 8|| b(0) == 11");
+  image = image.addBands(BitNDB7);
+  // Mask application
+  return image.updateMask(BitNDB7.eq(0));
+  };
+  
+  // A constructor (M1maskATMP) incorporating a mask function to include pixels with atmospheric correction (ATMP) for MODIS1 sensor
+  var M1maskATMP = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_ATMP = image.select('pixel_qa_250');
+  // This identifies the appropriate bitmask values during mask application
+  var BitATMP = getQABits(QA_ATMP, 12, 12, 'ATMP').expression("b(0) == 0");
+  image = image.addBands(BitATMP);
+  // Mask application
+  return image.updateMask(BitATMP.eq(0));
+  };
+  
+  // A constructor (M2maskATMP) incorporating a mask function to include pixels with atmospheric correction (ATMP) for MODIS2 sensor
+  var M2maskATMP = function(image) {
+  // Here the users can indentify the quality band for each imagery
+  var QA_ATMP = image.select('pixel_qa_500');
+  // This identifies the appropriate bitmask values during mask application
+  var BitATMP = getQABits(QA_ATMP, 30, 30, 'ATMP').expression("b(0) == 0");
+  image = image.addBands(BitATMP);
+  // Mask application
+  return image.updateMask(BitATMP.eq(0));
+  };
+  
   // This function applies scaling factors
   function applyScaleFactors(image) {
-  var opticalBands = image.select(['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2']).multiply(0.0000275).add(-0.2);
+  var opticalBands = image.select(['RED','NIR1', 'BLUE','GREEN','NIR2','SWIR1','SWIR2']).multiply(0.0001);
   return image.addBands(opticalBands, null, true);
   }
   
-  // A constructor (l8_harmonize) incorporating a function that harmonises the surface reflectance values of Landsat 8 
-  // with those of other Landsat satellites, using coefficients from Roy et al. 2016
-  // https://doi.org/10.1016/j.rse.2015.12.024
-  var l8_harmonize = function(l8img){
-  var b = ee.Image(0.0183).add(ee.Image(0.8850).multiply(l8img.select('BLUE')));
-  var g = ee.Image(0.0123).add(ee.Image(0.9317).multiply(l8img.select('GREEN')));
-  var r = ee.Image(0.0123).add(ee.Image(0.9372).multiply(l8img.select('RED')));
-  var nir = ee.Image(0.0448).add(ee.Image(0.8339).multiply(l8img.select('NIR1')));
-  var swir1 = ee.Image(0.0306).add(ee.Image(0.8639).multiply(l8img.select('SWIR1')));
-  var swir2 = ee.Image(0.0116).add(ee.Image(0.9165).multiply(l8img.select('SWIR2')));
-  var out = ee.Image(b.addBands(g).addBands(r).addBands(nir).addBands(swir1).addBands(swir2)
-  .addBands(l8img.select(['UB', 'pixel_qa'])).copyProperties(l8img, l8img.propertyNames())).rename(l8band_names);
-  return out;
+  // Here the users should define the period, as well as the area where restrict remote sensing data collections
+    
+  // The MODIS1 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
+  // and is cut to the study area
+  var M1filtered = M1_250.filterDate(start, end).select(M1_250bands, M1_250band_names).map(function(img){return img.clip(Area)});
+  
+  // The MODIS2 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
+  // and is cut to the study area
+  var M2filtered = M2_500.filterDate(start, end).select(M2_500bands, M2_500band_names).map(function(img){return img.clip(Area)});
+  
+  // The entire MODIS1 collection may be masked to filter out low quality pixels
+  var M1HighQuality_Areas = M1filtered.map(M1maskCPPIQ).map(M1maskHQB1).map(M1maskHQB2).map(M1maskNDB1)
+                          .map(M1maskNDB2).map(M1maskATMP);
+                          
+  // The entire MODIS2 collection may be masked to filter out low quality pixels
+  var M2HighQuality_Areas = M2filtered.map(M2maskCPPIQ).map(M2maskHQB3).map(M2maskHQB4).map(M2maskHQB5)
+                          .map(M2maskHQB6).map(M2maskHQB7).map(M2maskNDB3).map(M2maskNDB4).map(M2maskNDB5)
+                          .map(M2maskNDB6).map(M2maskNDB7).map(M2maskATMP);
+                          
+  // Resampling function for bands at 500m
+  var resample250 = function(image){
+  var projection =image.select('BLUE').projection();
+  var bands = image.select('BLUE','GREEN','NIR2','SWIR1','SWIR2');
+  var resample = bands.reproject({
+      crs: projection,
+      scale: 250
+    });
+     return resample 
+  .copyProperties(image,['system:time_start','system:time_end','system:index']);
   };
 
-  // A function to aggregate image collections according to their acquisition time
-  function mosaicBy(imcol){
-  var imlist = imcol.toList(imcol.size());
-  var unique_dates = imlist.map(function(im){
-  return ee.Image(im).date().format("YYYY-MM-dd");
-  }).distinct();
-  var mosaic_imlist = unique_dates.map(function(d){
-  d = ee.Date(d);
-  var im = imcol
-  .filterDate(d, d.advance(1, "day"))
-  .mosaic();
-  return im.set(
-  "system:time_start", d.millis(), 
-  "system:id", d.format("YYYY-MM-dd"));
-  });
-  return ee.ImageCollection(mosaic_imlist);
-  }
-
-  // Here the users should define the period, as well as the area where restrict remote sensing data collections
+  // Application of the resampling function
+  var M2HighQuality_Areas = M2HighQuality_Areas.map(resample250); 
   
-  // The Landsat 4 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
-  // and is cut to the study area
-  var l4 = ee.ImageCollection(L4).select(bands, band_names).filterDate(start, end).filterBounds(Area)
-  .map(function(img){return img.clip(Area)});
-  //var l4 = mosaicBy(l4); //User should use the data aggregation function (mosaicBy) only when study period reflect Landsat 4 lifespan
+    // The two MODIS collections need to be combined
+  var HighQuality_Areas = ee.ImageCollection(M1HighQuality_Areas.combine(M2HighQuality_Areas));
   
-  // The Landsat 5 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
-  // and is cut to the study area
-  var l5 = ee.ImageCollection(L5).select(bands, band_names).filterDate(start, end).filterBounds(Area)
-  .map(function(img){return img.clip(Area)});
-  //var l5 = mosaicBy(l5); //User should use the data aggregation function (mosaicBy) only when study period reflect Landsat 5 lifespan
+  // Once combined, users can apply scaling factors to switch from Digital Number (DN) to reflectance data
+  var HighQuality_Areas = HighQuality_Areas.map(applyScaleFactors);
   
-  // The Landsat 8 multispectral bands are renamed, the collection is filtered according to the selected period, to a geographical extent,
-  // and is cut to the study area
-  var l8 = ee.ImageCollection(L8).select(l8bands, l8band_names).filterDate(start, end).filterBounds(Area)
-  .map(function(img){return img.clip(Area)});
-  var l8 = mosaicBy(l8); //User should use the data aggregation function (mosaicBy) only when study period reflect Landsat 8 lifespan
-   
-  var l4 = l4.map(applyScaleFactors);
-  var l5 = l5.map(applyScaleFactors);
-  var l8 = l8.map(applyScaleFactors);
-
-  // The harmonisation function (l8_harmonize) may be applied
-  var l8h = l8.map(l8_harmonize);
-  
-  // The three Landsat collections are combined with harmonized band names and spectral properties
-  var landsat_raw = ee.ImageCollection(l4.merge(l5).merge(l8)).select(['BLUE', 'GREEN', 'RED', 'NIR1', 'SWIR1', 'SWIR2', 'pixel_qa']);
-  
-  // Now the entire collection may be masked to filter out low quality pixels
-  var HighQuality_Areas = landsat_raw.map(maskFillDilated).map(maskClouds).map(maskCloud_shadow).map(maskSnow).map(maskWater).map(maskCloud_conf)
-                           .map(maskShadow_conf).map(maskSnow_ice_conf).map(maskCirrus_conf);
-                           
   // First check of image collection
   print('First check of image collection:',HighQuality_Areas);
   
@@ -236,7 +308,7 @@
   var count = HighQuality_Areas.size();
   print('Count: ', count);
   
-  // Getting the date range of images in the collection
+  // Getting the date range of images in the collection.
   var range = HighQuality_Areas.reduceColumns(ee.Reducer.minMax(), ["system:time_start"]);
   print('Date range: ', ee.Date(range.get('min')), ee.Date(range.get('max')));
 
@@ -245,9 +317,9 @@
 
   // Users need to define the formula prior metrics calculation
   
-  // A constructor (compute_metrics) incorporating a function to calculate metrics for Landsat
+  // A constructor (compute_metrics) incorporating a function to calculate metrics for MODIS
   var compute_metrics = function(image) {
-  
+    
   // Defining the NDVI formula
   var ndvi = image.normalizedDifference(['NIR1', 'RED']).rename('NDVI');
   
@@ -259,7 +331,8 @@
   //  }).rename('NDVI');
   
   // Defining the EVI2 formula
-  var evi2 = image.select('NIR1').subtract(image.select('RED')).divide(image.select('NIR1').add(image.select('RED')).add(1)).multiply(2.4).rename('EVI2');
+  var evi2 = image.select('NIR1').subtract(image.select('RED')).divide(image.select('NIR1')
+  .add(image.select('RED')).add(1)).multiply(2.4).rename('EVI2');
   
   // Defining the MSAVI2 formula
   var msavi2  = image.select('NIR1').multiply(2).add(1).subtract(image.select('NIR1').
@@ -267,21 +340,21 @@
   multiply(8)).sqrt()).divide(2).rename('MSAVI2');
   
   // Defining the NDWI formula
-  var ndwi = image.normalizedDifference(['NIR1', 'SWIR1']).rename('NDWI');
+  var ndwi = image.normalizedDifference(['NIR1', 'NIR2']).rename('NDWI');
   
   // Defining the PSRI formula
   var psri = image.select('RED').subtract(image.select('BLUE')).divide(image.select('NIR1')).rename('PSRI');
   
   // Defining the NBR formula
   var nbr = image.normalizedDifference(['NIR1','SWIR2']).rename('NBR');
-
+  
   // Metrics calculation
   return image.addBands(ndvi).addBands(evi2).addBands(msavi2).addBands(ndwi).addBands(psri).addBands(nbr);
   };
 
   // Here, metrics are added to the entire collection
   var Spectral_Metrics = HighQuality_Areas.map(compute_metrics);
-
+  
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub-step 3: Data scaling
 
@@ -293,7 +366,7 @@
   // Users may eventually change the name of the constuctor if they change some parameter (e.g., addTexture_6X6_Mean)
   var addTexture_3X3_Mean = function(image) {
   // Users may here define which metrics to scale
-  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  var texture = image.select(['RED','NIR1','BLUE','GREEN','NIR2','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
   // Users may here define the type of aggregating formula (i.e, mean; https://developers.google.com/earth-engine/apidocs/ee-reducer-mean)
   // and the type of weight within spatial moving windows (https://developers.google.com/earth-engine/apidocs/ee-reducer-unweighted)
   reducer: ee.Reducer.mean().unweighted(),
@@ -301,7 +374,7 @@
   // and size (e.g., 3)
   kernel: ee.Kernel.circle(3),
   // Calculated metrics may be renamed
-  }).rename(['RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  }).rename(['RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','NIR2_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
   'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn']);
   // Scaled metrics may be reutrned as new bands
   return image.addBands(texture.add(ee.Image(0.0)));
@@ -311,7 +384,7 @@
   // Users may eventually change the name of the constuctor if they change some parameter (e.g., addTexture_6X6_Mean)
   var addTexture_3X3_stdDev = function(image) {
   // Users may here define which metrics to scale
-  var texture = image.select(['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
+  var texture = image.select(['RED','NIR1','BLUE','GREEN','NIR2','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR']).reduceNeighborhood({
   // Users may here define the type of aggregating formula (i.e, mean; https://developers.google.com/earth-engine/apidocs/ee-reducer-mean)
   // and the type of weight within spatial moving windows (https://developers.google.com/earth-engine/apidocs/ee-reducer-unweighted)
   reducer: ee.Reducer.stdDev().unweighted(),
@@ -319,7 +392,7 @@
   // and size (e.g., 3)
   kernel: ee.Kernel.circle(3),
   // Calculated metrics may be renamed
-  }).rename(['RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  }).rename(['RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','NIR2_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
   'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd']);
   // Scaled metrics may be reutrned as new bands
   return image.addBands(texture.add(ee.Image(0.0)));
@@ -361,19 +434,19 @@
   var Spectral_Metrics = ee.ImageCollection(Spectral_Metrics);
   
   // Identify the variable calculated to retain within the collection
-  var varbands = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
-  'RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
+  var varbands = ['RED','NIR1','BLUE','GREEN','NIR2','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3S_Mn','NIR1_3S_Mn','BLUE_3S_Mn','GREEN_3S_Mn','NIR2_3S_Mn','SWIR1_3S_Mn','SWIR2_3S_Mn','NDVI_3S_Mn','EVI2_3S_Mn','MSAVI2_3S_Mn',
   'NDWI_3S_Mn','PSRI_3S_Mn','NBR_3S_Mn',
-  'RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
+  'RED_3S_Sd','NIR1_3S_Sd','BLUE_3S_Sd','GREEN_3S_Sd','NIR2_3S_Sd','SWIR1_3S_Sd','SWIR2_3S_Sd','NDVI_3S_Sd','EVI2_3S_Sd','MSAVI2_3S_Sd',
   'NDWI_3S_Sd','PSRI_3S_Sd','NBR_3S_Sd',
   'NDVI_savg', 'NDVI_svar',
   'NDVI_idm','NDVI_corr'];
   
   // Selecting words to rename such variables, up to 10 characters due to column heading limits in the final Spatial Point Data Frame
-  var varband_names = ['RED','NIR1','BLUE','GREEN','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
-  'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
+  var varband_names = ['RED','NIR1','BLUE','GREEN','NIR2','SWIR1','SWIR2','NDVI','EVI2','MSAVI2','NDWI','PSRI','NBR',
+  'RED_3M','NIR1_3M','BLUE_3M','GREEN_3M','NIR2_3M','SWIR1_3M','SWIR2_3M','NDVI_3M','EVI2_3M','MSAVI2_3M',
   'NDWI_3M','PSRI_3M','NBR_3M',
-  'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
+  'RED_3S','NIR1_3S','BLUE_3S','GREEN_3S','NIR2_3S','SWIR1_3S','SWIR2_3S','NDVI_3S','EVI2_3S','MSAVI2_3S',
   'NDWI_3S','PSRI_3S','NBR_3S',
   'GLCM_M', 'GLCM_V', 
   'GLCM_H','GLCM_C'];
@@ -382,6 +455,7 @@
   var Spectral_Metrics = Spectral_Metrics.select(varbands, varband_names);
   
   print('Second check of image collection:', Spectral_Metrics);
+  
 
   // Start of a protocol to depict a variable as an example (e.g., MSAVI2)
   var msavi2 = Spectral_Metrics.select('MSAVI2');
@@ -389,7 +463,6 @@
   var msavi2 = msavi2.reduce(ee.Reducer.median());
   // Clipping the composite within the study area
   var msavi2_clipped = msavi2.clip(Area);
-  
   // Selectign a palette.
   var palette = ['FFFFFF', 'CE7E45', 'DF923D', 'F1B555', 'FCD163', '99B718',
                '74A901', '66A000', '529400', '3E8601', '207401', '056201',
@@ -415,8 +488,8 @@
   var date = ee.Date.parse('YYYY/MM/dd', ee.String(feature.get('timestamp2')));
   
   // Here users may set the size of Moving Windows for temporally scaling remotely sensed information forward and backward from each observation timestamp
-  var startTempWind = date.advance(-9,'days');
-  var endTempWind = date.advance(9,'days');
+  var startTempWind = date.advance(-1,'days');
+  var endTempWind = date.advance(1,'days');
   
   // Here users may set the aggregating formula (e.g., mean, standard deviation, etc.)
   var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).median();
@@ -438,15 +511,15 @@
   // Users can export the table file as CSV, and join the data table with the original shapefile by the "ID" field of the ground-data vector
   Export.table.toDrive({
   collection: ExtractedData,
-  description:'Landsat_PA_Multispectral_2017',
+  description:'MODIS_PA_Multispectral_2017',
   fileFormat: 'CSV',
-  'folder': 'Landsat_PA_Multispectral'
+  'folder': 'MODIS_PA_Multispectral'
   });
   
-  // Here users can join the data table to the original shapefile within GEE, yet the operation is time-consuming
+   // Here users can join the data table to the original shapefile within GEE, yet the operation is time-consuming
   
   // The following process is required to join the extracted information with the original vector data
-  // Defining the original Spatial Dataframe
+  // Defining the original Spatial Dataframe.
   var OriginalSpatialPointsDataframe = points;
   
   // Defining the extracted data table
@@ -476,9 +549,9 @@
   // Exporting the Spatial Dataframe to a SHP file
   Export.table.toDrive({
   collection: DataframeJoin,
-  description:'Landsat_PA_Multispectral_2017',
+  description:'MODIS_PA_Multispectral_2017',
   fileFormat: 'SHP',
-  'folder': 'Landsat_PA_Multispectral'
+  'folder': 'MODIS_PA_Multispectral'
   });
   
   //Alternatively, the user can indicate specific metrics to write
