@@ -55,37 +55,47 @@
   var band_names = ['BLUE','GREEN','RED','Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR1','NIR2','SWIR1','SWIR2','pixel_qa','pixel_flag'];
   
   // Masks preparation
-  // A constructor (maskClouds) incorporating a mask function to retain pixels without opaque clouds
+  // Retain pixels without opaque clouds when QA60 is available.
+  // If QA60 is masked/missing, pass this step and rely on SCL below.
   var maskClouds = function(image) {
-  // Here the users can indentify the quality band for each imagery
   var QA_Clouds = image.select('pixel_qa');
-  // This identifies the appropriate bitmask values during mask application
-  var BitClouds = getQABits(QA_Clouds, 10, 10, 'Opaque clouds').expression("b(0) == 0");
+
+  var BitClouds = getQABits(QA_Clouds, 10, 10, 'Opaque_clouds')
+  .eq(0)
+  .unmask(1)
+  .rename('Opaque_clouds_clear');
+
   image = image.addBands(BitClouds);
-  // Mask application
-  return image.updateMask(BitClouds.neq(0));
+
+  return image.updateMask(BitClouds);
   };
-  
-  // A constructor (maskClouds) incorporating a mask function to retain pixels without opaque cirri
+
+  // Retain pixels without cirrus clouds when QA60 is available.
+  // If QA60 is masked/missing, pass this step and rely on SCL below.
   var maskCirrus = function(image) {
-  // Here the users can indentify the quality band for each imagery
   var QA_Cirrus = image.select('pixel_qa');
-  // This identifies the appropriate bitmask values during mask application
-  var BitCirrus = getQABits(QA_Cirrus, 11, 11, 'Cirrus Clouds').expression("b(0) == 0");
+
+  var BitCirrus = getQABits(QA_Cirrus, 11, 11, 'Cirrus_clouds')
+  .eq(0)
+  .unmask(1)
+  .rename('Cirrus_clouds_clear');
+
   image = image.addBands(BitCirrus);
-  // Mask application
-  return image.updateMask(BitCirrus.neq(0));
+
+  return image.updateMask(BitCirrus);
   };
-  
-  // A constructor (maskNoanomalies) incorporating a mask function  to exclude specified pixel values (anomalies)
- // Keep only clear land + water
-var maskNoanomalies = function(image){
-  var scl = image.select('pixel_flag'); // or 'SCL' if not renamed
+
+  // Keep only selected SCL classes.
+  // This remains the active quality mask when QA60 is unavailable.
+  var maskNoanomalies = function(image) {
+  var scl = image.select('pixel_flag');
+
   var keep = scl.eq(4)   // vegetation
-    .or(scl.eq(5))       // bare soil
-    .or(scl.eq(6));      // water
+  .or(scl.eq(5))       // bare soil
+  .or(scl.eq(6));      // water
+
   return image.updateMask(keep);
-};
+  };
     
   // A function to aggregate image collection by their acquisition time, orbit, and spacecraft
   //(https://gis.stackexchange.com/questions/420009/casting-computed-list-by-using-foreach-reducer-method)
@@ -156,30 +166,30 @@ var maskNoanomalies = function(image){
   var projection =image.select('Red_Edge_1').projection();
   var bands = image.select('Red_Edge_1','Red_Edge_2','Red_Edge_3','NIR2','SWIR1','SWIR2');
   var resample = bands.reproject({
-      crs: projection,
-      scale: 10
-    });
-     return resample 
+  crs: projection,
+  scale: 10
+  });
+  return resample 
   .copyProperties(image,['system:time_start','system:time_end']);
-};
+  };
 
-var Sentinel_20m_Bands = Sentinel_20m_Bands.map(resample10);
+  var Sentinel_20m_Bands = Sentinel_20m_Bands.map(resample10);
 
-// The two collections need to be combined
-// var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.combine(Sentinel_20m_Bands));
+  // The two collections need to be combined
+  // var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(Sentinel_10m_Bands.combine(Sentinel_20m_Bands));
 
-// NEW
-var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
+  // NEW
+  var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
   ee.Join.inner().apply(
-    Sentinel_10m_Bands,
-    Sentinel_20m_Bands,
-    ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
+  Sentinel_10m_Bands,
+  Sentinel_20m_Bands,
+  ee.Filter.equals({leftField: 'system:index', rightField: 'system:index'})
   ).map(function(f) {
-    var i10 = ee.Image(f.get('primary'));
-    var i20 = ee.Image(f.get('secondary'));
-    return i10.addBands(i20).copyProperties(i10, i10.propertyNames());
+  var i10 = ee.Image(f.get('primary'));
+  var i20 = ee.Image(f.get('secondary'));
+  return i10.addBands(i20).copyProperties(i10, i10.propertyNames());
   })
-);
+  );
 
   
   // First check of image collection.
@@ -374,16 +384,18 @@ var HighQuality_Area_Land_FreeClouds = ee.ImageCollection(
   var endTempWind = date.advance(4,'days');
   
   // Here users may set the aggregating formula (e.g., mean, standard deviation, etc.)
-  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).mean();
+  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).median();
   
-  // Remotely sensed information is extracted using the geometry feature (ground point data)            
-  var data = FiltTempWind.reduceRegion(ee.Reducer.first(), feature.geometry(), 10);
-  
-  // For polygons (or polylines)
-  //// Aggregate values inside each polygon //var data = FiltTempWind.reduceRegion({//reducer: ee.Reducer.mean(),//geometry: feature.geometry(),//scale: 10,/maxPixels: 1e9,//bestEffort: true
-  
+  // Remotely sensed information is extracted using the geometry feature (ground point data)
+  var data = FiltTempWind.reduceRegion({
+  reducer: ee.Reducer.first(),
+  geometry: ee.Feature(feature).geometry(),
+  scale: 10,
+  maxPixels: 1e9
+  });
+
   // Returns a data table
-  return ee.Feature(feature.setMulti(data));
+  return ee.Feature(feature).set(data);
   });
   
   print('Check the first row of data table :', ExtractedData.first());
