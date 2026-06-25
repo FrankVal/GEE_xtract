@@ -7,9 +7,9 @@
 
 // * The second sub-step shows how to calculate spectral metrics for each available multispectral image of the time-series
 
-// * The third sub-step demonstrates how to apply spatial and temporal scales along the time-series, then to extract remotely sensed information from ground data.
+// * The third sub-step demonstrates how to apply spatial and temporal scales along the time-series, then to extract remotely sensed information from ground data
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sub-step 1: Data filtering
    
   // The user can select MODIS collections (https://developers.google.com/earth-engine/datasets/catalog/modis), namely GPP and LST
@@ -132,7 +132,7 @@
   
   print('Second check of image collection:', GPP_LST_Indices_MnSd);
 
-  // Temporal scaling
+   // Temporal scaling
   // First users need to filter the image colletion based on the ground-base Spatial-Points-Dataframe (or Spatial-Polygons-Dataframe, or Spatial-Lines-Dataframe)
   // The filtering process is a process that uses a temporal moving window around each observation date (timestamp) related to ground observations
   // The information within each moving window for each observation is therefore aggregated, and finally extracted
@@ -149,12 +149,18 @@
   var endTempWind = date.advance(4,'days');
   
   // Here users may set the aggregating formula (e.g., mean, standard deviation, etc.)
-  var FiltTempWind = GPP_LST_Indices_MnSd.filterDate(startTempWind, endTempWind).mean();
+  var FiltTempWind = Spectral_Metrics.filterDate(startTempWind, endTempWind).median();
   
-  // Remotely sensed information is extracted using the geometry feature (ground data)            
-  var data = FiltTempWind.reduceRegion(ee.Reducer.first(), feature.geometry(), 250);
+  // Remotely sensed information is extracted using the geometry feature (ground point data)
+  var data = FiltTempWind.reduceRegion({
+  reducer: ee.Reducer.first(),
+  geometry: ee.Feature(feature).geometry(),
+  scale: 250,
+  maxPixels: 1e9
+  });
+
   // Returns a data table
-  return ee.Feature(feature.setMulti(data));
+  return ee.Feature(feature).set(data);
   });
   
   print('Check the first row of data table :', ExtractedData.first());
